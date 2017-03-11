@@ -147,7 +147,7 @@ public:
 		}
 		return result;
 	}
-	
+
 	operator float*() { return &m[0][0]; }
 
 
@@ -162,6 +162,10 @@ struct vec4 {
 		v[0] = x; v[1] = y; v[2] = z; v[3] = w;
 	}
 
+	vec4& operator+=(const vec4& right) {
+		*this = vec4(v[0] += right.v[0], v[1] += right.v[1], v[2] += right.v[2], v[3] += right.v[3]);
+		return *this;
+	}
 	vec4 operator*(const mat4& mat) {
 		vec4 result;
 		for (int j = 0; j < 4; j++) {
@@ -170,24 +174,23 @@ struct vec4 {
 		}
 		return result;
 	}
-
 	vec4 operator*(float a) const {
 		vec4 res(v[0] * a, v[1] * a, v[2] * a);
 		return res;
 	}
-	vec4 operator+(const vec4& right) {
+	vec4 operator+(const vec4& right) const {
 		return vec4(v[0] + right.v[0], v[1] + right.v[1], v[2] + right.v[2], v[3] + right.v[3]);
 	}
-	vec4 operator-(const vec4& right) {
+	vec4 operator-(const vec4& right) const {
 		return vec4(v[0] - right.v[0], v[1] - right.v[1], v[2] - right.v[2], v[3] - right.v[3]);
 	}
-	vec4 operator*(const vec4& right) {
+	vec4 operator*(const vec4& right) const {
 		return vec4(v[0] * right.v[0], v[1] * right.v[1], v[2] * right.v[2], v[3] * right.v[3]);
 	}
-	float dot(const vec4& right) {
+	float dot(const vec4& right) const {
 		return (v[0] * right.v[0] + v[1] * right.v[1] + v[2] * right.v[2]);
 	}
-	float length() {
+	float length() const {
 		return sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
 	}
 };
@@ -195,7 +198,7 @@ struct vec4 {
 
 float WSize = 100; //100 which is 1 km / 10m (thus 50m is 5)
 
-// 2D camera
+				   // 2D camera
 struct Camera {
 	float wCx, wCy;	// center in world coordinates
 	float wWx, wWy;	// width and height in world coordinates
@@ -205,45 +208,38 @@ public:
 	}
 
 	mat4 V() { // view matrix: translates the center to the origin
-		return mat4(1,    0, 0, 0,
-			        0,    1, 0, 0,
-			        0,    0, 1, 0,
-			     -wCx, -wCy, 0, 1);
+		return mat4(1, 0, 0, 0,
+			0, 1, 0, 0,
+			0, 0, 1, 0,
+			-wCx, -wCy, 0, 1);
 	}
 
 	mat4 P() { // projection matrix: scales it to be a square of edge length 2
-		return mat4(2/wWx,    0, 0, 0,
-			        0,    2/wWy, 0, 0,
-			        0,        0, 1, 0,
-			        0,        0, 0, 1);
+		return mat4(2 / wWx, 0, 0, 0,
+			0, 2 / wWy, 0, 0,
+			0, 0, 1, 0,
+			0, 0, 0, 1);
 	}
 
 	mat4 Vinv() { // inverse view matrix
-		return mat4(1,     0, 0, 0,
-				    0,     1, 0, 0,
-			        0,     0, 1, 0,
-			        wCx, wCy, 0, 1);
+		return mat4(1, 0, 0, 0,
+			0, 1, 0, 0,
+			0, 0, 1, 0,
+			wCx, wCy, 0, 1);
 	}
 
 	mat4 Pinv() { // inverse projection matrix
-		return mat4(wWx/2, 0,    0, 0,
-			           0, wWy/2, 0, 0,
-			           0,  0,    1, 0,
-			           0,  0,    0, 1);
+		return mat4(wWx / 2, 0, 0, 0,
+			0, wWy / 2, 0, 0,
+			0, 0, 1, 0,
+			0, 0, 0, 1);
 	}
 
 	void Animate(float t) {
-<<<<<<< HEAD
-		wCx = 0; // 10 * cosf(t);
-		wCy = 0;
-		wWx = 20;
-		wWy = 20;
-=======
-		wCx = WSize/2;
-		wCy = WSize/2;
+		wCx = WSize / 2;
+		wCy = WSize / 2;
 		wWx = WSize;
 		wWy = WSize;
->>>>>>> e16794f... Bezier done
 	}
 };
 
@@ -258,8 +254,6 @@ unsigned int shaderProgram;
 // Models
 ////////////////////////////////////////////////
 
-<<<<<<< HEAD
-=======
 class Triangle {
 	unsigned int vao;	// vertex array object id
 	float sx, sy;		// scaling
@@ -276,14 +270,14 @@ public:
 		glGenBuffers(2, &vbo[0]);	// Generate 2 vertex buffer objects
 									// Done with the makin part, baby
 
-		// vertex coordinates: vbo[0] -> Attrib Array 0 -> vertexPosition of the vertex shader
+									// vertex coordinates: vbo[0] -> Attrib Array 0 -> vertexPosition of the vertex shader
 		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]); // make it active, it is an array
 		static float vertexCoords[] = { 0,0, 0, 100, 100, 0 };	// vertex data on the CPU
 		glBufferData(GL_ARRAY_BUFFER,   // copy to the GPU
 			sizeof(vertexCoords),		// number of the vbo in bytes
 			vertexCoords,				// address of the data array on the CPU
 			GL_STATIC_DRAW);			// copy to that part of the memory which is not modified 
-		// Map Attribute Array 0 to the current bound vertex buffer (vbo[0])
+										// Map Attribute Array 0 to the current bound vertex buffer (vbo[0])
 		glEnableVertexAttribArray(0);
 		// Data organization of Attribute Array 0 
 		glVertexAttribPointer(0,	// Attribute Array 0
@@ -291,13 +285,13 @@ public:
 			GL_FALSE,				// not in fixed point format, do not normalized
 			0, NULL);				// stride and offset: it is tightly packed
 
-		// vertex colors: vbo[1] -> Attrib Array 1 -> vertexColor of the vertex shader
+									// vertex colors: vbo[1] -> Attrib Array 1 -> vertexColor of the vertex shader
 		glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);	// make it active, it is an array
 		static float vertexColors[] = { 1, 0, 0,  0, 1, 0,  0, 0, 1 };						// vertex data on the CPU
 		glBufferData(GL_ARRAY_BUFFER, sizeof(vertexColors), vertexColors, GL_STATIC_DRAW);	// copy to the GPU
-		// Map Attribute Array 1 to the current bound vertex buffer (vbo[1])
+																							// Map Attribute Array 1 to the current bound vertex buffer (vbo[1])
 		glEnableVertexAttribArray(1);			// Vertex position
-		// Data organization of Attribute Array 1
+												// Data organization of Attribute Array 1
 		glVertexAttribPointer(1,	// Attribute Array 1,
 			3, GL_FLOAT,			// components/attribute, component type,
 			GL_FALSE,				// normalize?, 
@@ -347,7 +341,7 @@ class BezierSurface {
 		vec4(0,	50,		40),	vec4(25,	50,		100),	vec4(50, 50,	100),	vec4(75,	50,		90),	 vec4(100,	50,	60),
 		vec4(0,	25,		30),	vec4(25,	25,		40),	vec4(50, 25,	40),	vec4(75,	25,		50),	 vec4(100,	25,	60),
 		vec4(0,	0,		10),	vec4(25,	0,		40),	vec4(50, 0,		25),	vec4(75,	0,		30),	 vec4(100,	0,	100),
-		};	// vertex data on the CPU
+	};	// vertex data on the CPU
 
 	float B(int i, float t) {
 		int n = cpsSize - 1; // n deg polynomial = n+1 pts!
@@ -357,20 +351,20 @@ class BezierSurface {
 	}
 
 	vec4 paramBS(float u, float v) {
-		vec4 rr(0,0);
+		vec4 rr(0, 0);
 		for (int n = 0; n < cpsSize; n++)
 			for (int m = 0; m < cpsSize; m++)
-				rr += cps[n][m]* B(n, u)*B(m, v);
+				rr += cps[n][m] * B(n, u)*B(m, v);
 		return rr;
 	}
 
 	vec4 zColorInterp(const vec4& vec) {
 		float z = vec.v[2];
-		
-		float blue = (z/100.0); //
+
+		float blue = (z / 100.0); //
 		float green = 1.0 - blue; //
 
-		return vec4(0, green, blue,0);
+		return vec4(0, green, blue, 0);
 	}
 
 public:
@@ -385,11 +379,11 @@ public:
 		// Enable the vertex attribute arrays
 		glEnableVertexAttribArray(0);  // attribute array 0
 		glEnableVertexAttribArray(1);  // attribute array 1
-		
-		// Map attribute array 0 to the vertex data of the interleaved vbo
-		// attribute array, components/attribute, component type, normalize?, stride, offset
-		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), reinterpret_cast<void*>(0)); 
-		
+
+									   // Map attribute array 0 to the vertex data of the interleaved vbo
+									   // attribute array, components/attribute, component type, normalize?, stride, offset
+		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), reinterpret_cast<void*>(0));
+
 		// Map attribute array 1 to the color data of the interleaved vbo
 		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), reinterpret_cast<void*>(2 * sizeof(float)));
 
@@ -398,9 +392,9 @@ public:
 		vec4 nextCol;
 		//World size is 100 and model resolution is 5:
 		int u, v;
-		for (u = 0; u <= 100-5; u += 5) {
+		for (u = 0; u <= 100 - 5; u += 5) {
 			for (v = 0; v <= 100; v += 5) {
-				nextV = paramBS((float)u/100, (float)v/100);
+				nextV = paramBS((float)u / 100, (float)v / 100);
 				nextCol = zColorInterp(nextV);
 				// triangle left bot (and right bot)
 				vertexData[5 * nVertices] = nextV.v[0];
@@ -410,7 +404,7 @@ public:
 				vertexData[5 * nVertices + 4] = nextCol.v[2]; // blue
 				nVertices++;
 
-				nextV = paramBS((float)(u+5)/100, (float)v/100);
+				nextV = paramBS((float)(u + 5) / 100, (float)v / 100);
 				nextCol = zColorInterp(nextV);
 				// triangle left top (and right top)
 				vertexData[5 * nVertices] = nextV.v[0];
@@ -420,7 +414,7 @@ public:
 				vertexData[5 * nVertices + 4] = nextCol.v[2]; // blue
 				nVertices++;
 			}
-			nextV = paramBS((float)(u + 5) / 100, (float)(v+5) / 100);
+			nextV = paramBS((float)(u + 5) / 100, (float)(v + 5) / 100);
 			nextCol = zColorInterp(nextV);
 			// first terminal
 			vertexData[5 * nVertices] = nextV.v[0];
@@ -430,7 +424,7 @@ public:
 			vertexData[5 * nVertices + 4] = nextCol.v[2]; // blue
 			nVertices++;
 
-			nextV = paramBS((float)(u+5)/100,0);
+			nextV = paramBS((float)(u + 5) / 100, 0);
 			nextCol = zColorInterp(nextV);
 			// first starter)
 			vertexData[5 * nVertices] = nextV.v[0];
@@ -440,7 +434,7 @@ public:
 			vertexData[5 * nVertices + 4] = nextCol.v[2]; // blue
 			nVertices++;
 		}
-		
+
 		// copy data to the GPU
 		glBufferData(GL_ARRAY_BUFFER, nVertices * 5 * sizeof(float), vertexData, GL_STATIC_DRAW);
 	}
@@ -460,7 +454,6 @@ public:
 };
 
 
->>>>>>> e16794f... Bezier done
 class LineStrip {
 	GLuint vao, vbo;        // vertex array object, vertex buffer object
 	float  vertexData[100]; // interleaved data of coordinates and colors
@@ -478,9 +471,9 @@ public:
 		// Enable the vertex attribute arrays
 		glEnableVertexAttribArray(0);  // attribute array 0
 		glEnableVertexAttribArray(1);  // attribute array 1
-		// Map attribute array 0 to the vertex data of the interleaved vbo
+									   // Map attribute array 0 to the vertex data of the interleaved vbo
 		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), reinterpret_cast<void*>(0)); // attribute array, components/attribute, component type, normalize?, stride, offset
-		// Map attribute array 1 to the color data of the interleaved vbo
+																										// Map attribute array 1 to the color data of the interleaved vbo
 		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), reinterpret_cast<void*>(2 * sizeof(float)));
 	}
 
@@ -490,7 +483,7 @@ public:
 
 		vec4 wVertex = vec4(cX, cY, 0, 1) * camera.Pinv() * camera.Vinv();
 		// fill interleaved data
-		vertexData[5 * nVertices]     = wVertex.v[0];
+		vertexData[5 * nVertices] = wVertex.v[0];
 		vertexData[5 * nVertices + 1] = wVertex.v[1];
 		vertexData[5 * nVertices + 2] = 1; // red
 		vertexData[5 * nVertices + 3] = 1; // green
@@ -528,10 +521,7 @@ void onInitialization() {
 
 	// Create objects by setting up their vertex data on the GPU
 	lineStrip.Create();
-<<<<<<< HEAD
-=======
 	bezierSurface.Create();
->>>>>>> e16794f... Bezier done
 
 	// Create vertex shader from string
 	unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
@@ -565,7 +555,7 @@ void onInitialization() {
 	// Connect the fragmentColor to the frame buffer memory
 	glBindFragDataLocation(shaderProgram, 0, "fragmentColor");	// fragmentColor goes to the frame buffer memory
 
-	// program packaging
+																// program packaging
 	glLinkProgram(shaderProgram);
 	checkLinking(shaderProgram);
 	// make this program run
@@ -582,10 +572,7 @@ void onDisplay() {
 	glClearColor(0, 0, 0, 0);							// background color 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the screen
 
-<<<<<<< HEAD
-=======
 	bezierSurface.Draw();
->>>>>>> e16794f... Bezier done
 	lineStrip.Draw();
 
 	glutSwapBuffers();									// exchange the two buffers
