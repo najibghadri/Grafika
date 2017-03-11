@@ -147,7 +147,7 @@ public:
 		}
 		return result;
 	}
-	
+
 	operator float*() { return &m[0][0]; }
 
 
@@ -162,6 +162,10 @@ struct vec4 {
 		v[0] = x; v[1] = y; v[2] = z; v[3] = w;
 	}
 
+	vec4& operator+=(const vec4& right) {
+		*this = vec4(v[0] += right.v[0], v[1] += right.v[1], v[2] += right.v[2], v[3] += right.v[3]);
+		return *this;
+	}
 	vec4 operator*(const mat4& mat) {
 		vec4 result;
 		for (int j = 0; j < 4; j++) {
@@ -170,24 +174,23 @@ struct vec4 {
 		}
 		return result;
 	}
-
 	vec4 operator*(float a) const {
 		vec4 res(v[0] * a, v[1] * a, v[2] * a);
 		return res;
 	}
-	vec4 operator+(const vec4& right) {
+	vec4 operator+(const vec4& right) const  {
 		return vec4(v[0] + right.v[0], v[1] + right.v[1], v[2] + right.v[2], v[3] + right.v[3]);
 	}
-	vec4 operator-(const vec4& right) {
+	vec4 operator-(const vec4& right) const {
 		return vec4(v[0] - right.v[0], v[1] - right.v[1], v[2] - right.v[2], v[3] - right.v[3]);
 	}
-	vec4 operator*(const vec4& right) {
+	vec4 operator*(const vec4& right) const {
 		return vec4(v[0] * right.v[0], v[1] * right.v[1], v[2] * right.v[2], v[3] * right.v[3]);
 	}
-	float dot(const vec4& right) {
+	float dot(const vec4& right) const {
 		return (v[0] * right.v[0] + v[1] * right.v[1] + v[2] * right.v[2]);
 	}
-	float length() {
+	float length() const {
 		return sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
 	}
 };
@@ -202,31 +205,31 @@ public:
 	}
 
 	mat4 V() { // view matrix: translates the center to the origin
-		return mat4(1,    0, 0, 0,
-			        0,    1, 0, 0,
-			        0,    0, 1, 0,
-			     -wCx, -wCy, 0, 1);
+		return mat4(1, 0, 0, 0,
+			0, 1, 0, 0,
+			0, 0, 1, 0,
+			-wCx, -wCy, 0, 1);
 	}
 
 	mat4 P() { // projection matrix: scales it to be a square of edge length 2
-		return mat4(2/wWx,    0, 0, 0,
-			        0,    2/wWy, 0, 0,
-			        0,        0, 1, 0,
-			        0,        0, 0, 1);
+		return mat4(2 / wWx, 0, 0, 0,
+			0, 2 / wWy, 0, 0,
+			0, 0, 1, 0,
+			0, 0, 0, 1);
 	}
 
 	mat4 Vinv() { // inverse view matrix
-		return mat4(1,     0, 0, 0,
-				    0,     1, 0, 0,
-			        0,     0, 1, 0,
-			        wCx, wCy, 0, 1);
+		return mat4(1, 0, 0, 0,
+			0, 1, 0, 0,
+			0, 0, 1, 0,
+			wCx, wCy, 0, 1);
 	}
 
 	mat4 Pinv() { // inverse projection matrix
-		return mat4(wWx/2, 0,    0, 0,
-			           0, wWy/2, 0, 0,
-			           0,  0,    1, 0,
-			           0,  0,    0, 1);
+		return mat4(wWx / 2, 0, 0, 0,
+			0, wWy / 2, 0, 0,
+			0, 0, 1, 0,
+			0, 0, 0, 1);
 	}
 
 	void Animate(float t) {
@@ -264,29 +267,29 @@ public:
 		unsigned int vbo[2];		// vertex buffer objects
 		glGenBuffers(2, &vbo[0]);	// Generate 2 vertex buffer objects
 
-		// vertex coordinates: vbo[0] -> Attrib Array 0 -> vertexPosition of the vertex shader
+									// vertex coordinates: vbo[0] -> Attrib Array 0 -> vertexPosition of the vertex shader
 		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]); // make it active, it is an array
 		static float vertexCoords[] = { -8, -8, -6, 10, 8, -2 };	// vertex data on the CPU
 		glBufferData(GL_ARRAY_BUFFER,      // copy to the GPU
-			         sizeof(vertexCoords), // number of the vbo in bytes
-					 vertexCoords,		   // address of the data array on the CPU
-					 GL_STATIC_DRAW);	   // copy to that part of the memory which is not modified 
-		// Map Attribute Array 0 to the current bound vertex buffer (vbo[0])
-		glEnableVertexAttribArray(0); 
+			sizeof(vertexCoords), // number of the vbo in bytes
+			vertexCoords,		   // address of the data array on the CPU
+			GL_STATIC_DRAW);	   // copy to that part of the memory which is not modified 
+								   // Map Attribute Array 0 to the current bound vertex buffer (vbo[0])
+		glEnableVertexAttribArray(0);
 		// Data organization of Attribute Array 0 
 		glVertexAttribPointer(0,			// Attribute Array 0
-			                  2, GL_FLOAT,  // components/attribute, component type
-							  GL_FALSE,		// not in fixed point format, do not normalized
-							  0, NULL);     // stride and offset: it is tightly packed
+			2, GL_FLOAT,  // components/attribute, component type
+			GL_FALSE,		// not in fixed point format, do not normalized
+			0, NULL);     // stride and offset: it is tightly packed
 
-		// vertex colors: vbo[1] -> Attrib Array 1 -> vertexColor of the vertex shader
+						  // vertex colors: vbo[1] -> Attrib Array 1 -> vertexColor of the vertex shader
 		glBindBuffer(GL_ARRAY_BUFFER, vbo[1]); // make it active, it is an array
 		static float vertexColors[] = { 1, 0, 0,  0, 1, 0,  0, 0, 1 };	// vertex data on the CPU
 		glBufferData(GL_ARRAY_BUFFER, sizeof(vertexColors), vertexColors, GL_STATIC_DRAW);	// copy to the GPU
 
-		// Map Attribute Array 1 to the current bound vertex buffer (vbo[1])
+																							// Map Attribute Array 1 to the current bound vertex buffer (vbo[1])
 		glEnableVertexAttribArray(1);  // Vertex position
-		// Data organization of Attribute Array 1
+									   // Data organization of Attribute Array 1
 		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, NULL); // Attribute Array 1, components/attribute, component type, normalize?, tightly packed
 	}
 
@@ -299,14 +302,14 @@ public:
 
 	void Draw() {
 		mat4 Mscale(sx, 0, 0, 0,
-			        0, sy, 0, 0,
-			        0, 0, 0, 0,
-			        0, 0, 0, 1); // model matrix
+			0, sy, 0, 0,
+			0, 0, 0, 0,
+			0, 0, 0, 1); // model matrix
 
-		mat4 Mtranslate(1,   0,  0, 0,
-			            0,   1,  0, 0,
-			            0,   0,  0, 0,
-			          wTx, wTy,  0, 1); // model matrix
+		mat4 Mtranslate(1, 0, 0, 0,
+			0, 1, 0, 0,
+			0, 0, 0, 0,
+			wTx, wTy, 0, 1); // model matrix
 
 		mat4 MVPTransform = Mscale * Mtranslate * camera.V() * camera.P();
 
@@ -320,8 +323,90 @@ public:
 	}
 };
 
+class BezierCurve {
+	std::vector<vec4> cps;	// control points 
+
+	float B(int i, float t) {
+		int n = cps.size() - 1; // n deg polynomial = n+1 pts!
+		float choose = 1;
+		for (int j = 1; j <= i; j++) choose *= (float)(n - j + 1) / j;
+		return choose * pow(t, i) * pow(1 - t, n - i);
+	}
+public:
+	void AddControlPoint(vec4 cp) { cps.push_back(cp); }
+
+	vec4 r(float t) {
+		vec4 r(0, 0);
+		for (int i = 0; i < cps.size(); i++) 
+			r += cps[i] * B(i, t);
+		return r;
+	}
+
+	vec4 rr(float u, float v) {
+		vec4 rr(0, 0);
+
+
+		return rr;
+	}
+};
+
+
+class LineStrip {
+	GLuint vao, vbo;        // vertex array object, vertex buffer object
+	float  vertexData[100]; // interleaved data of coordinates and colors
+	int    nVertices;       // number of vertices
+public:
+	LineStrip() {
+		nVertices = 0;
+	}
+	void Create() {
+		glGenVertexArrays(1, &vao);
+		glBindVertexArray(vao);
+
+		glGenBuffers(1, &vbo); // Generate 1 vertex buffer object
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		// Enable the vertex attribute arrays
+		glEnableVertexAttribArray(0);  // attribute array 0
+		glEnableVertexAttribArray(1);  // attribute array 1
+									   // Map attribute array 0 to the vertex data of the interleaved vbo
+		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), reinterpret_cast<void*>(0)); // attribute array, components/attribute, component type, normalize?, stride, offset
+																										// Map attribute array 1 to the color data of the interleaved vbo
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), reinterpret_cast<void*>(2 * sizeof(float)));
+	}
+
+	void AddPoint(float cX, float cY) {
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		if (nVertices >= 20) return;
+
+		vec4 wVertex = vec4(cX, cY, 0, 1) * camera.Pinv() * camera.Vinv();
+		// fill interleaved data
+		vertexData[5 * nVertices] = wVertex.v[0];
+		vertexData[5 * nVertices + 1] = wVertex.v[1];
+		vertexData[5 * nVertices + 2] = 1; // red
+		vertexData[5 * nVertices + 3] = 1; // green
+		vertexData[5 * nVertices + 4] = 0; // blue
+		nVertices++;
+		// copy data to the GPU
+		glBufferData(GL_ARRAY_BUFFER, nVertices * 5 * sizeof(float), vertexData, GL_DYNAMIC_DRAW);
+	}
+
+	void Draw() {
+		if (nVertices > 0) {
+			mat4 VPTransform = camera.V() * camera.P();
+
+			int location = glGetUniformLocation(shaderProgram, "MVP");
+			if (location >= 0) glUniformMatrix4fv(location, 1, GL_TRUE, VPTransform);
+			else printf("uniform MVP cannot be set\n");
+
+			glBindVertexArray(vao);
+			glDrawArrays(GL_LINE_STRIP, 0, nVertices);
+		}
+	}
+};
+
 // The virtual world: collection of two objects
 Triangle triangle;
+LineStrip lineStrip;
 
 ////////////////////////////////////////////////
 // Initialization and events
@@ -332,6 +417,7 @@ void onInitialization() {
 	glViewport(0, 0, windowWidth, windowHeight);
 
 	// Create objects by setting up their vertex data on the GPU
+	lineStrip.Create();
 	triangle.Create();
 
 	// Create vertex shader from string
@@ -366,7 +452,7 @@ void onInitialization() {
 	// Connect the fragmentColor to the frame buffer memory
 	glBindFragDataLocation(shaderProgram, 0, "fragmentColor");	// fragmentColor goes to the frame buffer memory
 
-	// program packaging
+																// program packaging
 	glLinkProgram(shaderProgram);
 	checkLinking(shaderProgram);
 	// make this program run
@@ -384,6 +470,7 @@ void onDisplay() {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the screen
 
 	triangle.Draw();
+	lineStrip.Draw();
 	glutSwapBuffers();									// exchange the two buffers
 }
 
@@ -402,6 +489,7 @@ void onMouse(int button, int state, int pX, int pY) {
 	if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {  // GLUT_LEFT_BUTTON / GLUT_RIGHT_BUTTON and GLUT_DOWN / GLUT_UP
 		float cX = 2.0f * pX / windowWidth - 1;	// flip y axis
 		float cY = 1.0f - 2.0f * pY / windowHeight;
+		lineStrip.AddPoint(cX, cY);
 		glutPostRedisplay();     // redraw
 	}
 }
