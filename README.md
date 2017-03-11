@@ -1,2 +1,2 @@
 # Grafika homeworks
-Homeworks for university subject, written in C++.
+Homeworks for university graphics subject, written in C++.
