@@ -206,16 +206,16 @@ public:
 
 	mat4 V() { // view matrix: translates the center to the origin
 		return mat4(1, 0, 0, 0,
-			0, 1, 0, 0,
-			0, 0, 1, 0,
-			-wCx, -wCy, 0, 1);
+					0, 1, 0, 0,
+					0, 0, 1, 0,
+					-wCx, -wCy, 0, 1);
 	}
 
 	mat4 P() { // projection matrix: scales it to be a square of edge length 2
 		return mat4(2 / wWx, 0, 0, 0,
-			0, 2 / wWy, 0, 0,
-			0, 0, 1, 0,
-			0, 0, 0, 1);
+					0, 2 / wWy, 0, 0,
+					0, 0, 1, 0,
+					0, 0, 0, 1);
 	}
 
 	mat4 Vinv() { // inverse view matrix
@@ -235,8 +235,8 @@ public:
 	void Animate(float t) {
 		wCx = 0; // 10 * cosf(t);
 		wCy = 0;
-		wWx = 20;
-		wWy = 20;
+		wWx = 100; //100 m*10 a vilag
+		wWy = 100;
 	}
 };
 
@@ -263,34 +263,40 @@ public:
 	void Create() {
 		glGenVertexArrays(1, &vao);	// create 1 vertex array object
 		glBindVertexArray(vao);		// make it active
-
 		unsigned int vbo[2];		// vertex buffer objects
 		glGenBuffers(2, &vbo[0]);	// Generate 2 vertex buffer objects
+									// Done with the makin part, baby
 
-									// vertex coordinates: vbo[0] -> Attrib Array 0 -> vertexPosition of the vertex shader
+		// vertex coordinates: vbo[0] -> Attrib Array 0 -> vertexPosition of the vertex shader
 		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]); // make it active, it is an array
 		static float vertexCoords[] = { -8, -8, -6, 10, 8, -2 };	// vertex data on the CPU
-		glBufferData(GL_ARRAY_BUFFER,      // copy to the GPU
-			sizeof(vertexCoords), // number of the vbo in bytes
-			vertexCoords,		   // address of the data array on the CPU
-			GL_STATIC_DRAW);	   // copy to that part of the memory which is not modified 
-								   // Map Attribute Array 0 to the current bound vertex buffer (vbo[0])
+		glBufferData(GL_ARRAY_BUFFER,   // copy to the GPU
+			sizeof(vertexCoords),		// number of the vbo in bytes
+			vertexCoords,				// address of the data array on the CPU
+			GL_STATIC_DRAW);			// copy to that part of the memory which is not modified 
+		
+		// Map Attribute Array 0 to the current bound vertex buffer (vbo[0])
 		glEnableVertexAttribArray(0);
-		// Data organization of Attribute Array 0 
-		glVertexAttribPointer(0,			// Attribute Array 0
-			2, GL_FLOAT,  // components/attribute, component type
-			GL_FALSE,		// not in fixed point format, do not normalized
-			0, NULL);     // stride and offset: it is tightly packed
 
-						  // vertex colors: vbo[1] -> Attrib Array 1 -> vertexColor of the vertex shader
-		glBindBuffer(GL_ARRAY_BUFFER, vbo[1]); // make it active, it is an array
-		static float vertexColors[] = { 1, 0, 0,  0, 1, 0,  0, 0, 1 };	// vertex data on the CPU
+		// Data organization of Attribute Array 0 
+		glVertexAttribPointer(0,	// Attribute Array 0
+			2, GL_FLOAT,			// components/attribute, component type
+			GL_FALSE,				// not in fixed point format, do not normalized
+			0, NULL);				// stride and offset: it is tightly packed
+
+		// vertex colors: vbo[1] -> Attrib Array 1 -> vertexColor of the vertex shader
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);	// make it active, it is an array
+		static float vertexColors[] = { 1, 0, 0,  0, 1, 0,  0, 0, 1 };						// vertex data on the CPU
 		glBufferData(GL_ARRAY_BUFFER, sizeof(vertexColors), vertexColors, GL_STATIC_DRAW);	// copy to the GPU
 
-																							// Map Attribute Array 1 to the current bound vertex buffer (vbo[1])
-		glEnableVertexAttribArray(1);  // Vertex position
-									   // Data organization of Attribute Array 1
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, NULL); // Attribute Array 1, components/attribute, component type, normalize?, tightly packed
+		// Map Attribute Array 1 to the current bound vertex buffer (vbo[1])
+		glEnableVertexAttribArray(1);			// Vertex position
+
+		// Data organization of Attribute Array 1
+		glVertexAttribPointer(1,	// Attribute Array 1,
+			3, GL_FLOAT,			// components/attribute, component type,
+			GL_FALSE,				// normalize?, 
+			0, NULL);				// tightly packed
 	}
 
 	void Animate(float t) {
@@ -323,30 +329,83 @@ public:
 	}
 };
 
-class BezierCurve {
-	std::vector<vec4> cps;	// control points 
+class BezierSurface {
+	int cpsSize = 5;
+	vec4 const cps[5][5] = {	vec4(0,0,10),  vec4(25,0,40),  vec4(50,0,25),  vec4(75,0,50),  vec4(100,0,10),
+								vec4(0,25,35), vec4(25,25,75), vec4(50,25,25), vec4(75,25,30), vec4(100,25,30),
+								vec4(0,50,60), vec4(25,50,90), vec4(50,50,100),vec4(75,50,50), vec4(100,50,60),
+								vec4(0,75,30), vec4(25,75,80), vec4(50,75,90), vec4(75,75,40), vec4(100,75,10),
+								vec4(0,100,50),vec4(25,100,60),vec4(50,100,25),vec4(75,100,10),vec4(100,100,0),
+							};	// vertex data on the CPU
+
+	GLuint vao, vbo;        // vertex array object, vertex buffer object
+	float  vertexData[100]; // interleaved data of coordinates and colors
+	int    nVertices;       // number of vertices
 
 	float B(int i, float t) {
-		int n = cps.size() - 1; // n deg polynomial = n+1 pts!
+		int n = cpsSize - 1; // n deg polynomial = n+1 pts!
 		float choose = 1;
 		for (int j = 1; j <= i; j++) choose *= (float)(n - j + 1) / j;
 		return choose * pow(t, i) * pow(1 - t, n - i);
 	}
 public:
-	void AddControlPoint(vec4 cp) { cps.push_back(cp); }
-
-	vec4 r(float t) {
-		vec4 r(0, 0);
-		for (int i = 0; i < cps.size(); i++) 
-			r += cps[i] * B(i, t);
-		return r;
-	}
 
 	vec4 rr(float u, float v) {
 		vec4 rr(0, 0);
-
+		
+		for (int n = 0; n < cpsSize; n++)
+			for (int m = 0; m < cpsSize; m++)
+				rr += cps[n][m] * B(n, u)*B(m, v);
 
 		return rr;
+	}
+
+	BezierSurface() {
+
+	}
+
+	void Create() {
+		glGenVertexArrays(1, &vao);
+		glBindVertexArray(vao);
+
+		glGenBuffers(1, &vbo); // Generate 1 vertex buffer object
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		// Enable the vertex attribute arrays
+		glEnableVertexAttribArray(0);  // attribute array 0
+		glEnableVertexAttribArray(1);  // attribute array 1
+									   // Map attribute array 0 to the vertex data of the interleaved vbo
+		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), reinterpret_cast<void*>(0)); // attribute array, components/attribute, component type, normalize?, stride, offset
+																										// Map attribute array 1 to the color data of the interleaved vbo
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), reinterpret_cast<void*>(2 * sizeof(float)));
+	}
+
+	void AddPoint(float cX, float cY) {
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		if (nVertices >= 20) return;
+
+		vec4 wVertex = vec4(cX, cY, 0, 1) * camera.Pinv() * camera.Vinv();
+		// fill interleaved data
+		vertexData[5 * nVertices] = wVertex.v[0];
+		vertexData[5 * nVertices + 1] = wVertex.v[1];
+		vertexData[5 * nVertices + 2] = 1; // red
+		vertexData[5 * nVertices + 3] = 1; // green
+		vertexData[5 * nVertices + 4] = 0; // blue
+		nVertices++;
+		// copy data to the GPU
+		glBufferData(GL_ARRAY_BUFFER, nVertices * 5 * sizeof(float), vertexData, GL_DYNAMIC_DRAW);
+	}
+
+	void Draw() {
+		if (nVertices > 0) {
+			mat4 VPTransform = camera.V() * camera.P();
+
+			int location = glGetUniformLocation(shaderProgram, "MVP");
+			if (location >= 0) glUniformMatrix4fv(location, 1, GL_TRUE, VPTransform);
+			else printf("uniform MVP cannot be set\n");
+
+			glBindVertexArray(vao);
+			glDrawArrays(GL_LINE_STRIP, 0, nVertices);
+		}
 	}
 };
 
