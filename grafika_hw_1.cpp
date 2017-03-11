@@ -192,6 +192,9 @@ struct vec4 {
 	}
 };
 
+
+float WSize = 100; //100 which is 1 km / 10m (thus 50m is 5)
+
 // 2D camera
 struct Camera {
 	float wCx, wCy;	// center in world coordinates
@@ -230,10 +233,17 @@ public:
 	}
 
 	void Animate(float t) {
+<<<<<<< HEAD
 		wCx = 0; // 10 * cosf(t);
 		wCy = 0;
 		wWx = 20;
 		wWy = 20;
+=======
+		wCx = WSize/2;
+		wCy = WSize/2;
+		wWx = WSize;
+		wWy = WSize;
+>>>>>>> e16794f... Bezier done
 	}
 };
 
@@ -248,6 +258,209 @@ unsigned int shaderProgram;
 // Models
 ////////////////////////////////////////////////
 
+<<<<<<< HEAD
+=======
+class Triangle {
+	unsigned int vao;	// vertex array object id
+	float sx, sy;		// scaling
+	float wTx, wTy;		// translation
+public:
+	Triangle() {
+		Animate(0);
+	}
+
+	void Create() {
+		glGenVertexArrays(1, &vao);	// create 1 vertex array object
+		glBindVertexArray(vao);		// make it active
+		unsigned int vbo[2];		// vertex buffer objects
+		glGenBuffers(2, &vbo[0]);	// Generate 2 vertex buffer objects
+									// Done with the makin part, baby
+
+		// vertex coordinates: vbo[0] -> Attrib Array 0 -> vertexPosition of the vertex shader
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]); // make it active, it is an array
+		static float vertexCoords[] = { 0,0, 0, 100, 100, 0 };	// vertex data on the CPU
+		glBufferData(GL_ARRAY_BUFFER,   // copy to the GPU
+			sizeof(vertexCoords),		// number of the vbo in bytes
+			vertexCoords,				// address of the data array on the CPU
+			GL_STATIC_DRAW);			// copy to that part of the memory which is not modified 
+		// Map Attribute Array 0 to the current bound vertex buffer (vbo[0])
+		glEnableVertexAttribArray(0);
+		// Data organization of Attribute Array 0 
+		glVertexAttribPointer(0,	// Attribute Array 0
+			2, GL_FLOAT,			// components/attribute, component type
+			GL_FALSE,				// not in fixed point format, do not normalized
+			0, NULL);				// stride and offset: it is tightly packed
+
+		// vertex colors: vbo[1] -> Attrib Array 1 -> vertexColor of the vertex shader
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);	// make it active, it is an array
+		static float vertexColors[] = { 1, 0, 0,  0, 1, 0,  0, 0, 1 };						// vertex data on the CPU
+		glBufferData(GL_ARRAY_BUFFER, sizeof(vertexColors), vertexColors, GL_STATIC_DRAW);	// copy to the GPU
+		// Map Attribute Array 1 to the current bound vertex buffer (vbo[1])
+		glEnableVertexAttribArray(1);			// Vertex position
+		// Data organization of Attribute Array 1
+		glVertexAttribPointer(1,	// Attribute Array 1,
+			3, GL_FLOAT,			// components/attribute, component type,
+			GL_FALSE,				// normalize?, 
+			0, NULL);				// tightly packed
+	}
+
+	void Animate(float t) {
+		sx = 1; // sinf(t);
+		sy = 1; // cosf(t);
+		wTx = 0; // 4 * cosf(t / 2);
+		wTy = 0; // 4 * sinf(t / 2);
+	}
+
+	void Draw() {
+		mat4 Mscale(sx, 0, 0, 0,
+			0, sy, 0, 0,
+			0, 0, 0, 0,
+			0, 0, 0, 1); // model matrix
+
+		mat4 Mtranslate(1, 0, 0, 0,
+			0, 1, 0, 0,
+			0, 0, 0, 0,
+			wTx, wTy, 0, 1); // model matrix
+
+		mat4 MVPTransform = Mscale * Mtranslate * camera.V() * camera.P();
+
+		// set GPU uniform matrix variable MVP with the content of CPU variable MVPTransform
+		int location = glGetUniformLocation(shaderProgram, "MVP");
+		if (location >= 0) glUniformMatrix4fv(location, 1, GL_TRUE, MVPTransform); // set uniform variable MVP to the MVPTransform
+		else printf("uniform MVP cannot be set\n");
+
+		glBindVertexArray(vao);	// make the vao and its vbos active playing the role of the data source
+		glDrawArrays(GL_TRIANGLES, 0, 3);	// draw a single triangle with vertices defined in vao
+	}
+};
+
+class BezierSurface {
+	GLuint vao, vbo;		// vertex array object, vertex buffer object
+	float vertexData[5000];	// data of coordinates and colors
+	int nVertices;
+
+	//Control points gird size
+	int cpsSize = 5;
+	vec4 const cps[5][5] = {
+		vec4(0,	100,	0),		vec4(25,	100,	60),	vec4(50, 100,	25),	vec4(75,	100,	10),	 vec4(100,	100,0),
+		vec4(0,	75,		30),	vec4(25,	75,		100),	vec4(50, 75,	90),	vec4(75,	75,		40),	 vec4(100,	75,	10),
+		vec4(0,	50,		40),	vec4(25,	50,		100),	vec4(50, 50,	100),	vec4(75,	50,		90),	 vec4(100,	50,	60),
+		vec4(0,	25,		30),	vec4(25,	25,		40),	vec4(50, 25,	40),	vec4(75,	25,		50),	 vec4(100,	25,	60),
+		vec4(0,	0,		10),	vec4(25,	0,		40),	vec4(50, 0,		25),	vec4(75,	0,		30),	 vec4(100,	0,	100),
+		};	// vertex data on the CPU
+
+	float B(int i, float t) {
+		int n = cpsSize - 1; // n deg polynomial = n+1 pts!
+		float choose = 1;
+		for (int j = 1; j <= i; j++) choose *= (float)(n - j + 1) / j;
+		return choose * pow(t, i) * pow(1 - t, n - i);
+	}
+
+	vec4 paramBS(float u, float v) {
+		vec4 rr(0,0);
+		for (int n = 0; n < cpsSize; n++)
+			for (int m = 0; m < cpsSize; m++)
+				rr += cps[n][m]* B(n, u)*B(m, v);
+		return rr;
+	}
+
+	vec4 zColorInterp(const vec4& vec) {
+		float z = vec.v[2];
+		
+		float blue = (z/100.0); //
+		float green = 1.0 - blue; //
+
+		return vec4(0, green, blue,0);
+	}
+
+public:
+
+	void Create() {
+		glGenVertexArrays(1, &vao);
+		glBindVertexArray(vao);
+
+		glGenBuffers(1, &vbo); // Generate 1 vertex buffer object
+		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+
+		// Enable the vertex attribute arrays
+		glEnableVertexAttribArray(0);  // attribute array 0
+		glEnableVertexAttribArray(1);  // attribute array 1
+		
+		// Map attribute array 0 to the vertex data of the interleaved vbo
+		// attribute array, components/attribute, component type, normalize?, stride, offset
+		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), reinterpret_cast<void*>(0)); 
+		
+		// Map attribute array 1 to the color data of the interleaved vbo
+		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), reinterpret_cast<void*>(2 * sizeof(float)));
+
+		nVertices = 0;
+		vec4 nextV;
+		vec4 nextCol;
+		//World size is 100 and model resolution is 5:
+		int u, v;
+		for (u = 0; u <= 100-5; u += 5) {
+			for (v = 0; v <= 100; v += 5) {
+				nextV = paramBS((float)u/100, (float)v/100);
+				nextCol = zColorInterp(nextV);
+				// triangle left bot (and right bot)
+				vertexData[5 * nVertices] = nextV.v[0];
+				vertexData[5 * nVertices + 1] = nextV.v[1];
+				vertexData[5 * nVertices + 2] = nextCol.v[0]; // red
+				vertexData[5 * nVertices + 3] = nextCol.v[1]; // green
+				vertexData[5 * nVertices + 4] = nextCol.v[2]; // blue
+				nVertices++;
+
+				nextV = paramBS((float)(u+5)/100, (float)v/100);
+				nextCol = zColorInterp(nextV);
+				// triangle left top (and right top)
+				vertexData[5 * nVertices] = nextV.v[0];
+				vertexData[5 * nVertices + 1] = nextV.v[1];
+				vertexData[5 * nVertices + 2] = nextCol.v[0]; // red
+				vertexData[5 * nVertices + 3] = nextCol.v[1]; // green
+				vertexData[5 * nVertices + 4] = nextCol.v[2]; // blue
+				nVertices++;
+			}
+			nextV = paramBS((float)(u + 5) / 100, (float)(v+5) / 100);
+			nextCol = zColorInterp(nextV);
+			// first terminal
+			vertexData[5 * nVertices] = nextV.v[0];
+			vertexData[5 * nVertices + 1] = nextV.v[1];
+			vertexData[5 * nVertices + 2] = nextCol.v[0]; // red
+			vertexData[5 * nVertices + 3] = nextCol.v[1]; // green
+			vertexData[5 * nVertices + 4] = nextCol.v[2]; // blue
+			nVertices++;
+
+			nextV = paramBS((float)(u+5)/100,0);
+			nextCol = zColorInterp(nextV);
+			// first starter)
+			vertexData[5 * nVertices] = nextV.v[0];
+			vertexData[5 * nVertices + 1] = nextV.v[1];
+			vertexData[5 * nVertices + 2] = nextCol.v[0]; // red
+			vertexData[5 * nVertices + 3] = nextCol.v[1]; // green
+			vertexData[5 * nVertices + 4] = nextCol.v[2]; // blue
+			nVertices++;
+		}
+		
+		// copy data to the GPU
+		glBufferData(GL_ARRAY_BUFFER, nVertices * 5 * sizeof(float), vertexData, GL_STATIC_DRAW);
+	}
+
+	void Draw() {
+
+		mat4 VPTransform = camera.V() * camera.P();
+
+		// set GPU uniform matrix variable MVP with the content of CPU variable MVPTransform
+		int location = glGetUniformLocation(shaderProgram, "MVP");
+		if (location >= 0) glUniformMatrix4fv(location, 1, GL_TRUE, VPTransform); // set uniform variable MVP to the MVPTransform
+		else printf("uniform MVP cannot be set\n");
+
+		glBindVertexArray(vao);	// make the vao and its vbos active playing the role of the data source
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, nVertices);
+	}
+};
+
+
+>>>>>>> e16794f... Bezier done
 class LineStrip {
 	GLuint vao, vbo;        // vertex array object, vertex buffer object
 	float  vertexData[100]; // interleaved data of coordinates and colors
@@ -303,6 +516,7 @@ public:
 
 // The virtual world: collection of two objects
 LineStrip lineStrip;
+BezierSurface bezierSurface;
 
 ////////////////////////////////////////////////
 // Initialization and events
@@ -314,6 +528,10 @@ void onInitialization() {
 
 	// Create objects by setting up their vertex data on the GPU
 	lineStrip.Create();
+<<<<<<< HEAD
+=======
+	bezierSurface.Create();
+>>>>>>> e16794f... Bezier done
 
 	// Create vertex shader from string
 	unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
@@ -364,7 +582,12 @@ void onDisplay() {
 	glClearColor(0, 0, 0, 0);							// background color 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the screen
 
+<<<<<<< HEAD
+=======
+	bezierSurface.Draw();
+>>>>>>> e16794f... Bezier done
 	lineStrip.Draw();
+
 	glutSwapBuffers();									// exchange the two buffers
 }
 
