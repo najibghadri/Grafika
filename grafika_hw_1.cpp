@@ -198,7 +198,7 @@ struct vec4 {
 
 float WSize = 100; //100 which is 1 km / 10m (thus 50m is 5)
 
-				   // 2D camera
+// 2D camera
 struct Camera {
 	float wCx, wCy;	// center in world coordinates
 	float wWx, wWy;	// width and height in world coordinates
@@ -248,7 +248,6 @@ Camera camera;
 
 // handle of the shader program
 unsigned int shaderProgram;
-
 
 ////////////////////////////////////////////////
 // Models
@@ -330,7 +329,7 @@ public:
 
 class BezierSurface {
 	GLuint vao, vbo;		// vertex array object, vertex buffer object
-	float vertexData[5000];	// data of coordinates and colors
+	float wVertexData[5000];	// data of coordinates and colors
 	int nVertices;
 
 	//Control points gird size
@@ -340,7 +339,7 @@ class BezierSurface {
 		vec4(0,	75,		30),	vec4(25,	75,		100),	vec4(50, 75,	90),	vec4(75,	75,		40),	 vec4(100,	75,	10),
 		vec4(0,	50,		40),	vec4(25,	50,		100),	vec4(50, 50,	100),	vec4(75,	50,		90),	 vec4(100,	50,	60),
 		vec4(0,	25,		30),	vec4(25,	25,		40),	vec4(50, 25,	40),	vec4(75,	25,		50),	 vec4(100,	25,	60),
-		vec4(0,	0,		10),	vec4(25,	0,		40),	vec4(50, 0,		25),	vec4(75,	0,		30),	 vec4(100,	0,	100),
+		vec4(0,	0,		60),	vec4(25,	0,		40),	vec4(50, 0,		25),	vec4(75,	0,		30),	 vec4(100,	0,	100),
 	};	// vertex data on the CPU
 
 	float B(int i, float t) {
@@ -350,24 +349,31 @@ class BezierSurface {
 		return choose * pow(t, i) * pow(1 - t, n - i);
 	}
 
-	vec4 paramBS(float u, float v) {
-		vec4 rr(0, 0);
-		for (int n = 0; n < cpsSize; n++)
-			for (int m = 0; m < cpsSize; m++)
-				rr += cps[n][m] * B(n, u)*B(m, v);
-		return rr;
-	}
-
 	vec4 zColorInterp(const vec4& vec) {
 		float z = vec.v[2];
 
-		float blue = (z / 100.0); //
-		float green = 1.0 - blue; //
+		float blue = (z / 100); //
+		float green = 1 - blue; //
 
 		return vec4(0, green, blue, 0);
 	}
 
+	vec4 uvParamBS(float u, float v) {
+		u = u / 100;
+		v = v / 100;
+		vec4 rr(0, 0, 0);
+		for (int n = 0; n < cpsSize; n++)
+			for (int m = 0; m < cpsSize; m++)
+				rr += cps[n][m] * B(n, u) * B(m, v);
+		return rr;
+	}
+
 public:
+
+	vec4 wParamBS(float x, float y) {
+		return uvParamBS(100-y,x);
+	}
+
 
 	void Create() {
 		glGenVertexArrays(1, &vao);
@@ -380,63 +386,64 @@ public:
 		glEnableVertexAttribArray(0);  // attribute array 0
 		glEnableVertexAttribArray(1);  // attribute array 1
 
-									   // Map attribute array 0 to the vertex data of the interleaved vbo
-									   // attribute array, components/attribute, component type, normalize?, stride, offset
+		// Map attribute array 0 to the vertex data of the interleaved vbo
+		// attribute array, components/attribute, component type, normalize?, stride, offset
 		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), reinterpret_cast<void*>(0));
 
 		// Map attribute array 1 to the color data of the interleaved vbo
 		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), reinterpret_cast<void*>(2 * sizeof(float)));
 
 		nVertices = 0;
-		vec4 nextV;
+		vec4 wNextVec;
 		vec4 nextCol;
-		//World size is 100 and model resolution is 5:
+		
 		int u, v;
+		//World size is 100 and model resolution is 5:
 		for (u = 0; u <= 100 - 5; u += 5) {
 			for (v = 0; v <= 100; v += 5) {
-				nextV = paramBS((float)u / 100, (float)v / 100);
-				nextCol = zColorInterp(nextV);
+				wNextVec = uvParamBS(u, v);
+				nextCol = zColorInterp(wNextVec);
 				// triangle left bot (and right bot)
-				vertexData[5 * nVertices] = nextV.v[0];
-				vertexData[5 * nVertices + 1] = nextV.v[1];
-				vertexData[5 * nVertices + 2] = nextCol.v[0]; // red
-				vertexData[5 * nVertices + 3] = nextCol.v[1]; // green
-				vertexData[5 * nVertices + 4] = nextCol.v[2]; // blue
+				wVertexData[5 * nVertices] = wNextVec.v[0];
+				wVertexData[5 * nVertices + 1] = wNextVec.v[1];
+				wVertexData[5 * nVertices + 2] = nextCol.v[0]; // red
+				wVertexData[5 * nVertices + 3] = nextCol.v[1]; // green
+				wVertexData[5 * nVertices + 4] = nextCol.v[2]; // blue
 				nVertices++;
 
-				nextV = paramBS((float)(u + 5) / 100, (float)v / 100);
-				nextCol = zColorInterp(nextV);
+				wNextVec = uvParamBS(u + 5, v);
+				nextCol = zColorInterp(wNextVec);
 				// triangle left top (and right top)
-				vertexData[5 * nVertices] = nextV.v[0];
-				vertexData[5 * nVertices + 1] = nextV.v[1];
-				vertexData[5 * nVertices + 2] = nextCol.v[0]; // red
-				vertexData[5 * nVertices + 3] = nextCol.v[1]; // green
-				vertexData[5 * nVertices + 4] = nextCol.v[2]; // blue
+				wVertexData[5 * nVertices] = wNextVec.v[0];
+				wVertexData[5 * nVertices + 1] = wNextVec.v[1];
+				wVertexData[5 * nVertices + 2] = nextCol.v[0]; // red
+				wVertexData[5 * nVertices + 3] = nextCol.v[1]; // green
+				wVertexData[5 * nVertices + 4] = nextCol.v[2]; // blue
 				nVertices++;
 			}
-			nextV = paramBS((float)(u + 5) / 100, (float)(v + 5) / 100);
-			nextCol = zColorInterp(nextV);
+			wNextVec = uvParamBS(u + 5, v - 5);
+			nextCol = zColorInterp(wNextVec);
 			// first terminal
-			vertexData[5 * nVertices] = nextV.v[0];
-			vertexData[5 * nVertices + 1] = nextV.v[1];
-			vertexData[5 * nVertices + 2] = nextCol.v[0]; // red
-			vertexData[5 * nVertices + 3] = nextCol.v[1]; // green
-			vertexData[5 * nVertices + 4] = nextCol.v[2]; // blue
+			wVertexData[5 * nVertices] = wNextVec.v[0];
+			wVertexData[5 * nVertices + 1] = wNextVec.v[1];
+			wVertexData[5 * nVertices + 2] = nextCol.v[0]; // red
+			wVertexData[5 * nVertices + 3] = nextCol.v[1]; // green
+			wVertexData[5 * nVertices + 4] = nextCol.v[2]; // blue
 			nVertices++;
 
-			nextV = paramBS((float)(u + 5) / 100, 0);
-			nextCol = zColorInterp(nextV);
+			wNextVec = uvParamBS(u + 5 , 0);
+			nextCol = zColorInterp(wNextVec);
 			// first starter)
-			vertexData[5 * nVertices] = nextV.v[0];
-			vertexData[5 * nVertices + 1] = nextV.v[1];
-			vertexData[5 * nVertices + 2] = nextCol.v[0]; // red
-			vertexData[5 * nVertices + 3] = nextCol.v[1]; // green
-			vertexData[5 * nVertices + 4] = nextCol.v[2]; // blue
+			wVertexData[5 * nVertices] = wNextVec.v[0];
+			wVertexData[5 * nVertices + 1] = wNextVec.v[1];
+			wVertexData[5 * nVertices + 2] = nextCol.v[0]; // red
+			wVertexData[5 * nVertices + 3] = nextCol.v[1]; // green
+			wVertexData[5 * nVertices + 4] = nextCol.v[2]; // blue
 			nVertices++;
 		}
 
 		// copy data to the GPU
-		glBufferData(GL_ARRAY_BUFFER, nVertices * 5 * sizeof(float), vertexData, GL_STATIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, nVertices * 5 * sizeof(float), wVertexData, GL_STATIC_DRAW);
 	}
 
 	void Draw() {
@@ -453,15 +460,32 @@ public:
 	}
 };
 
+BezierSurface bezierSurface;
 
-class LineStrip {
+class LagrangeRoute {
 	GLuint vao, vbo;        // vertex array object, vertex buffer object
-	float  vertexData[100]; // interleaved data of coordinates and colors
+	float  vertexData[15000]; // interleaved data of coordinates and colors
 	int    nVertices;       // number of vertices
-public:
-	LineStrip() {
-		nVertices = 0;
+
+	std::vector<vec4>  cps;	// control points
+	std::vector<float> ts; 	// time (knot) values
+	std::vector<float> pts; 	// pseudo (knot) values
+
+	float L(int i, float t) {
+		float Li = 1.0f;
+		for (int j = 0; j < cps.size(); j++)
+			if (j != i) Li *= (t - pts[j]) / (pts[i] - pts[j]);
+		return Li;
 	}
+
+public:
+
+	vec4 r(float t) {
+		vec4 rr(0, 0, 0);
+		for (int i = 0; i < cps.size(); i++) rr += cps[i] * L(i, t);
+		return rr;
+	}
+
 	void Create() {
 		glGenVertexArrays(1, &vao);
 		glBindVertexArray(vao);
@@ -477,24 +501,70 @@ public:
 		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), reinterpret_cast<void*>(2 * sizeof(float)));
 	}
 
-	void AddPoint(float cX, float cY) {
+	void AddPoint(float cX, float cY, float sec) {
 		glBindBuffer(GL_ARRAY_BUFFER, vbo);
-		if (nVertices >= 20) return;
 
-		vec4 wVertex = vec4(cX, cY, 0, 1) * camera.Pinv() * camera.Vinv();
-		// fill interleaved data
-		vertexData[5 * nVertices] = wVertex.v[0];
-		vertexData[5 * nVertices + 1] = wVertex.v[1];
-		vertexData[5 * nVertices + 2] = 1; // red
-		vertexData[5 * nVertices + 3] = 1; // green
-		vertexData[5 * nVertices + 4] = 0; // blue
-		nVertices++;
+		//Delete the curve closing point (which is the same as the first point) (if any)
+		if (cps.size() != 0) {
+			pts.pop_back();
+			cps.pop_back();
+			ts.pop_back();
+		}
+
+		//Create the new control point from the click params
+		vec4 preWVec = vec4(cX, cY, 0, 1) * camera.Pinv() * camera.Vinv();
+		vec4 wVec = bezierSurface.wParamBS(preWVec.v[0], preWVec.v[1]);
+		
+		pts.push_back(cps.size());		//push incremental knot value back
+		cps.push_back(wVec);			//push control point back
+		ts.push_back(sec);				//push time knot value back
+
+		//Create closing point
+		pts.push_back(cps.size());			//push CLOSING incremental  knot value back
+		cps.push_back(cps[0]);				//push CLOSING control point back
+		float endtime = ts[ts.size()-1]/2 - ts[0]/2 + ts[ts.size()-1];
+		ts.push_back(endtime);				//push CLOSING time knot value, which is half of the elapsed time.
+
+//DEBUG
+		system("cls");
+		printf("cX:\t%4.3f\ncY:\t%4.3f\n", cX, cY);
+		printf("preWVec:\t%4.1f\t%4.1f\t%4.1f\n", preWVec.v[0], preWVec.v[1], preWVec.v[2]);
+		printf("wVec:\t\t%4.1f\t%4.1f\t%4.1f\n", wVec.v[0], wVec.v[1], wVec.v[2]);
+		printf("-------------------\n");
+		printf("cps size:\t%d\n", cps.size());
+		printf("sec:\t%4.1f\n", sec);
+		printf("nVertices:\t%d\n", nVertices);
+		printf("-------------------\n");
+		printf("ts size:\t%d\n", ts.size());
+		printf("pts size:\t%d\n", pts.size());
+//DEBUG
+
+		nVertices = 0;
+		vec4 wItVec;
+		for (float i = 0; i < pts.size()-1; i += 0.05 ) {
+			wItVec = r(i);
+			// fill interleaved data
+			vertexData[5 * nVertices] = wItVec.v[0];
+			vertexData[5 * nVertices + 1] = wItVec.v[1];
+			if (i <= 0.1 || i+0.01 >= (pts.size()-1)) {
+				vertexData[5 * nVertices + 2] = 1; // red
+				vertexData[5 * nVertices + 3] = 0; // green
+				vertexData[5 * nVertices + 4] = 0; // blue
+			}
+			else {
+				vertexData[5 * nVertices + 2] = 1; // red
+				vertexData[5 * nVertices + 3] = 1; // green
+				vertexData[5 * nVertices + 4] = 1; // blue
+			}
+			nVertices++;
+		}
+
 		// copy data to the GPU
 		glBufferData(GL_ARRAY_BUFFER, nVertices * 5 * sizeof(float), vertexData, GL_DYNAMIC_DRAW);
 	}
 
 	void Draw() {
-		if (nVertices > 0) {
+		if (nVertices > 0)	{
 			mat4 VPTransform = camera.V() * camera.P();
 
 			int location = glGetUniformLocation(shaderProgram, "MVP");
@@ -508,8 +578,7 @@ public:
 };
 
 // The virtual world: collection of two objects
-LineStrip lineStrip;
-BezierSurface bezierSurface;
+LagrangeRoute lineStrip;
 
 ////////////////////////////////////////////////
 // Initialization and events
@@ -593,7 +662,11 @@ void onMouse(int button, int state, int pX, int pY) {
 	if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {  // GLUT_LEFT_BUTTON / GLUT_RIGHT_BUTTON and GLUT_DOWN / GLUT_UP
 		float cX = 2.0f * pX / windowWidth - 1;	// flip y axis
 		float cY = 1.0f - 2.0f * pY / windowHeight;
-		lineStrip.AddPoint(cX, cY);
+
+		long time = glutGet(GLUT_ELAPSED_TIME); // elapsed time since the start of the program
+		float sec = time / 1000.0f;				// convert msec to sec
+
+		lineStrip.AddPoint(cX, cY, sec);
 		glutPostRedisplay();     // redraw
 	}
 }
