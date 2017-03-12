@@ -252,6 +252,8 @@ unsigned int shaderProgram;
 ////////////////////////////////////////////////
 // Models
 ////////////////////////////////////////////////
+#define DEBUG
+
 
 class Triangle {
 	unsigned int vao;	// vertex array object id
@@ -374,7 +376,6 @@ public:
 		return uvParamBS(100-y,x);
 	}
 
-
 	void Create() {
 		glGenVertexArrays(1, &vao);
 		glBindVertexArray(vao);
@@ -471,7 +472,7 @@ class LagrangeRoute {
 	std::vector<float> ts; 	// time (knot) values
 	std::vector<float> pts; 	// pseudo (knot) values
 
-	float L(int i, float t) {
+	float l(int i, float t) {
 		float Li = 1.0f;
 		for (int j = 0; j < cps.size(); j++)
 			if (j != i) Li *= (t - pts[j]) / (pts[i] - pts[j]);
@@ -480,9 +481,9 @@ class LagrangeRoute {
 
 public:
 
-	vec4 r(float t) {
+	vec4 L(float t) {
 		vec4 rr(0, 0, 0);
-		for (int i = 0; i < cps.size(); i++) rr += cps[i] * L(i, t);
+		for (int i = 0; i < cps.size(); i++) rr += cps[i] * l(i, t);
 		return rr;
 	}
 
@@ -503,7 +504,11 @@ public:
 
 	void AddPoint(float cX, float cY, float sec) {
 		glBindBuffer(GL_ARRAY_BUFFER, vbo);
+		if (cps.size() >= 15) return;
 
+#ifdef DEBUG
+		system("cls");
+#endif
 		//Delete the curve closing point (which is the same as the first point) (if any)
 		if (cps.size() != 0) {
 			pts.pop_back();
@@ -514,39 +519,28 @@ public:
 		//Create the new control point from the click params
 		vec4 preWVec = vec4(cX, cY, 0, 1) * camera.Pinv() * camera.Vinv();
 		vec4 wVec = bezierSurface.wParamBS(preWVec.v[0], preWVec.v[1]);
-		
 		pts.push_back(cps.size());		//push incremental knot value back
 		cps.push_back(wVec);			//push control point back
 		ts.push_back(sec);				//push time knot value back
 
 		//Create closing point
-		pts.push_back(cps.size());			//push CLOSING incremental  knot value back
-		cps.push_back(cps[0]);				//push CLOSING control point back
-		float endtime = ts[ts.size()-1]/2 - ts[0]/2 + ts[ts.size()-1];
-		ts.push_back(endtime);				//push CLOSING time knot value, which is half of the elapsed time.
-
-//DEBUG
-		system("cls");
-		printf("cX:\t%4.3f\ncY:\t%4.3f\n", cX, cY);
-		printf("preWVec:\t%4.1f\t%4.1f\t%4.1f\n", preWVec.v[0], preWVec.v[1], preWVec.v[2]);
-		printf("wVec:\t\t%4.1f\t%4.1f\t%4.1f\n", wVec.v[0], wVec.v[1], wVec.v[2]);
-		printf("-------------------\n");
-		printf("cps size:\t%d\n", cps.size());
-		printf("sec:\t%4.1f\n", sec);
-		printf("nVertices:\t%d\n", nVertices);
-		printf("-------------------\n");
-		printf("ts size:\t%d\n", ts.size());
-		printf("pts size:\t%d\n", pts.size());
-//DEBUG
+		pts.push_back(cps.size());			//push CLOSING knot incremental value 
+		cps.push_back(cps[0]);				//push CLOSING control point 
+		//float endtime = ts[ts.size()-1]/2 - ts[0]/2 + ts[ts.size()-1];
+		ts.push_back(sec);				//push CLOSING knot time value (the same)
 
 		nVertices = 0;
 		vec4 wItVec;
-		for (float i = 0; i < pts.size()-1; i += 0.05 ) {
-			wItVec = r(i);
+		for (float i = 0; i < pts[pts.size()-1]; i += 0.01 ) {
+			wItVec = L(i);
+
 			// fill interleaved data
 			vertexData[5 * nVertices] = wItVec.v[0];
 			vertexData[5 * nVertices + 1] = wItVec.v[1];
-			if (i <= 0.1 || i+0.01 >= (pts.size()-1)) {
+
+
+#ifdef DEBUG 
+			if (i <= 0.05 || i+0.05 >= (pts.size()-1)) {
 				vertexData[5 * nVertices + 2] = 1; // red
 				vertexData[5 * nVertices + 3] = 0; // green
 				vertexData[5 * nVertices + 4] = 0; // blue
@@ -556,9 +550,39 @@ public:
 				vertexData[5 * nVertices + 3] = 1; // green
 				vertexData[5 * nVertices + 4] = 1; // blue
 			}
+#else
+			vertexData[5 * nVertices + 2] = 1; // red
+			vertexData[5 * nVertices + 3] = 1; // green
+			vertexData[5 * nVertices + 4] = 1; // blue
+#endif
 			nVertices++;
 		}
 
+#ifdef DEBUG
+		printf("cX:\t%4.3f\tcY:\t%4.3f\n", cX, cY);
+		printf("preWVec:\t%4.1f\t%4.1f\t%4.1f\n", preWVec.v[0], preWVec.v[1], preWVec.v[2]);
+		printf("wVec:\t\t%4.1f\t%4.1f\t%4.1f\n", wVec.v[0], wVec.v[1], wVec.v[2]);
+		printf("nVertices:\t%d\n", nVertices);
+		printf("-------------------\n");
+		printf("cps size:\t%d\n", cps.size());
+		printf("cps[]:\n");
+		for (int i = 0; i < cps.size(); i++)
+			printf("%4.1f, %4.1f, %4.1f\t", cps[i].v[0], cps[i].v[1], cps[i].v[2]);
+		printf("\n");
+		printf("-------------------\n");
+		printf("ts size:\t%d\n", ts.size());
+		printf("ts[]:\n");
+		for (int i = 0; i < pts.size(); i++)
+			printf("%4.2f\t", ts[i]);
+		printf("\n");
+		printf("-------------------\n");
+		printf("pts size:\t%d\n", pts.size());
+		printf("pts[]:\n");
+		for (int i = 0; i < pts.size(); i++)
+			printf("%4.2f\t", pts[i]);
+		printf("\n");
+
+#endif
 		// copy data to the GPU
 		glBufferData(GL_ARRAY_BUFFER, nVertices * 5 * sizeof(float), vertexData, GL_DYNAMIC_DRAW);
 	}
@@ -717,10 +741,10 @@ int main(int argc, char * argv[]) {
 
 	glutDisplayFunc(onDisplay);                // Register event handlers
 	glutMouseFunc(onMouse);
-	glutIdleFunc(onIdle);
+	//glutIdleFunc(onIdle);
 	glutKeyboardFunc(onKeyboard);
 	glutKeyboardUpFunc(onKeyboardUp);
-	glutMotionFunc(onMouseMotion);
+	//glutMotionFunc(onMouseMotion);
 
 	glutMainLoop();
 	onExit();
