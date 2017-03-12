@@ -479,11 +479,25 @@ class LagrangeRoute {
 		return Li;
 	}
 
+	float ld(int i, float t) {
+		float res = 0;
+
+		for (int j = 0; j < cps.size(); j++)
+			if (j != i) res += 1 / (t - pts[j]);
+		res *= l(i, t);
+	}
+
 public:
 
 	vec4 L(float t) {
 		vec4 rr(0, 0, 0);
 		for (int i = 0; i < cps.size(); i++) rr += cps[i] * l(i, t);
+		return rr;
+	}
+
+	vec4 LD(float t) {
+		vec4 rr(0, 0, 0);
+		for (int i = 0; i < cps.size(); i++) rr += cps[i] * ld(i, t);
 		return rr;
 	}
 
@@ -509,12 +523,6 @@ public:
 #ifdef DEBUG
 		system("cls");
 #endif
-		//Delete the curve closing point (which is the same as the first point) (if any)
-		if (cps.size() != 0) {
-			pts.pop_back();
-			cps.pop_back();
-			ts.pop_back();
-		}
 
 		//Create the new control point from the click params
 		vec4 preWVec = vec4(cX, cY, 0, 1) * camera.Pinv() * camera.Vinv();
@@ -522,12 +530,6 @@ public:
 		pts.push_back(cps.size());		//push incremental knot value back
 		cps.push_back(wVec);			//push control point back
 		ts.push_back(sec);				//push time knot value back
-
-		//Create closing point
-		pts.push_back(cps.size());			//push CLOSING knot incremental value 
-		cps.push_back(cps[0]);				//push CLOSING control point 
-		//float endtime = ts[ts.size()-1]/2 - ts[0]/2 + ts[ts.size()-1];
-		ts.push_back(sec);				//push CLOSING knot time value (the same)
 
 		nVertices = 0;
 		vec4 wItVec;
