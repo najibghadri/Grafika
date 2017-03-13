@@ -255,80 +255,6 @@ unsigned int shaderProgram;
 #define DEBUG
 
 
-class Triangle {
-	unsigned int vao;	// vertex array object id
-	float sx, sy;		// scaling
-	float wTx, wTy;		// translation
-public:
-	Triangle() {
-		Animate(0);
-	}
-
-	void Create() {
-		glGenVertexArrays(1, &vao);	// create 1 vertex array object
-		glBindVertexArray(vao);		// make it active
-		unsigned int vbo[2];		// vertex buffer objects
-		glGenBuffers(2, &vbo[0]);	// Generate 2 vertex buffer objects
-									// Done with the makin part, baby
-
-									// vertex coordinates: vbo[0] -> Attrib Array 0 -> vertexPosition of the vertex shader
-		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]); // make it active, it is an array
-		static float vertexCoords[] = { 0,0, 0, 100, 100, 0 };	// vertex data on the CPU
-		glBufferData(GL_ARRAY_BUFFER,   // copy to the GPU
-			sizeof(vertexCoords),		// number of the vbo in bytes
-			vertexCoords,				// address of the data array on the CPU
-			GL_STATIC_DRAW);			// copy to that part of the memory which is not modified 
-										// Map Attribute Array 0 to the current bound vertex buffer (vbo[0])
-		glEnableVertexAttribArray(0);
-		// Data organization of Attribute Array 0 
-		glVertexAttribPointer(0,	// Attribute Array 0
-			2, GL_FLOAT,			// components/attribute, component type
-			GL_FALSE,				// not in fixed point format, do not normalized
-			0, NULL);				// stride and offset: it is tightly packed
-
-									// vertex colors: vbo[1] -> Attrib Array 1 -> vertexColor of the vertex shader
-		glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);	// make it active, it is an array
-		static float vertexColors[] = { 1, 0, 0,  0, 1, 0,  0, 0, 1 };						// vertex data on the CPU
-		glBufferData(GL_ARRAY_BUFFER, sizeof(vertexColors), vertexColors, GL_STATIC_DRAW);	// copy to the GPU
-																							// Map Attribute Array 1 to the current bound vertex buffer (vbo[1])
-		glEnableVertexAttribArray(1);			// Vertex position
-												// Data organization of Attribute Array 1
-		glVertexAttribPointer(1,	// Attribute Array 1,
-			3, GL_FLOAT,			// components/attribute, component type,
-			GL_FALSE,				// normalize?, 
-			0, NULL);				// tightly packed
-	}
-
-	void Animate(float t) {
-		sx = 1; // sinf(t);
-		sy = 1; // cosf(t);
-		wTx = 0; // 4 * cosf(t / 2);
-		wTy = 0; // 4 * sinf(t / 2);
-	}
-
-	void Draw() {
-		mat4 Mscale(sx, 0, 0, 0,
-			0, sy, 0, 0,
-			0, 0, 0, 0,
-			0, 0, 0, 1); // model matrix
-
-		mat4 Mtranslate(1, 0, 0, 0,
-			0, 1, 0, 0,
-			0, 0, 0, 0,
-			wTx, wTy, 0, 1); // model matrix
-
-		mat4 MVPTransform = Mscale * Mtranslate * camera.V() * camera.P();
-
-		// set GPU uniform matrix variable MVP with the content of CPU variable MVPTransform
-		int location = glGetUniformLocation(shaderProgram, "MVP");
-		if (location >= 0) glUniformMatrix4fv(location, 1, GL_TRUE, MVPTransform); // set uniform variable MVP to the MVPTransform
-		else printf("uniform MVP cannot be set\n");
-
-		glBindVertexArray(vao);	// make the vao and its vbos active playing the role of the data source
-		glDrawArrays(GL_TRIANGLES, 0, 3);	// draw a single triangle with vertices defined in vao
-	}
-};
-
 class BezierSurface {
 	GLuint vao, vbo;		// vertex array object, vertex buffer object
 	float wVertexData[5000];	// data of coordinates and colors
@@ -469,32 +395,62 @@ class LagrangeRoute {
 	int    nVertices;       // number of vertices
 
 	std::vector<vec4>  cps;	// control points
-	std::vector<float> ts; 	// time (knot) values
-	std::vector<float> pts; 	// pseudo (knot) values
+	std::vector<float> its; 	// incremental (knot) values
+
+	float il(int i, float t) {
+		float Li = 1.0f;
+		for (int j = 0; j < cps.size(); j++)
+			if (j != i) Li *= (t - its[j]) / (its[i] - its[j]);
+		return Li;
+	}
+
+	float ild(int i, float t) {
+		float res = 0;
+		for (int j = 0; j < cps.size(); j++)
+			if (j != i) res += 1 / (t - its[j]);
+		res *= il(i, t);
+		return res;
+	}
+
+	//Incremental lagrange interpolation
+	vec4 iL(float t) {
+		vec4 rr(0, 0, 0);
+		for (int i = 0; i < cps.size(); i++) rr += cps[i] * il(i, t);
+		return rr;
+	}
+	//Incremental lagrange interpolation first derivative
+	vec4 iLD(float t) {
+		vec4 rr(0, 0, 0);
+		for (int i = 0; i < cps.size(); i++) rr += cps[i] * ild(i, t);
+		return rr;
+	}
 
 	float l(int i, float t) {
 		float Li = 1.0f;
 		for (int j = 0; j < cps.size(); j++)
-			if (j != i) Li *= (t - pts[j]) / (pts[i] - pts[j]);
+			if (j != i) Li *= (t - ts[j]) / (ts[i] - ts[j]);
 		return Li;
 	}
 
 	float ld(int i, float t) {
 		float res = 0;
-
 		for (int j = 0; j < cps.size(); j++)
-			if (j != i) res += 1 / (t - pts[j]);
-		res *= l(i, t);
+			if (j != i) res += 1 / (t - ts[j]);
+		res *= il(i, t);
+		return res;
 	}
-
+	bool rLock;
 public:
+	std::vector<float> ts; 	// time (knot) values
 
+	//Lagrange interpolation by time values
 	vec4 L(float t) {
 		vec4 rr(0, 0, 0);
 		for (int i = 0; i < cps.size(); i++) rr += cps[i] * l(i, t);
 		return rr;
 	}
 
+	//Lagrange curve first derivative
 	vec4 LD(float t) {
 		vec4 rr(0, 0, 0);
 		for (int i = 0; i < cps.size(); i++) rr += cps[i] * ld(i, t);
@@ -502,6 +458,7 @@ public:
 	}
 
 	void Create() {
+		rLock = false;
 		glGenVertexArrays(1, &vao);
 		glBindVertexArray(vao);
 
@@ -515,10 +472,18 @@ public:
 																										// Map attribute array 1 to the color data of the interleaved vbo
 		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), reinterpret_cast<void*>(2 * sizeof(float)));
 	}
-
+	
+	void lock() {
+		rLock = true;
+	}
+	void unlock() {
+		rLock = false;
+	}
+	
 	void AddPoint(float cX, float cY, float sec) {
 		glBindBuffer(GL_ARRAY_BUFFER, vbo);
 		if (cps.size() >= 15) return;
+		if (rLock == true) return;
 
 #ifdef DEBUG
 		system("cls");
@@ -527,14 +492,14 @@ public:
 		//Create the new control point from the click params
 		vec4 preWVec = vec4(cX, cY, 0, 1) * camera.Pinv() * camera.Vinv();
 		vec4 wVec = bezierSurface.wParamBS(preWVec.v[0], preWVec.v[1]);
-		pts.push_back(cps.size());		//push incremental knot value back
+		its.push_back(cps.size());		//push incremental knot value back
 		cps.push_back(wVec);			//push control point back
 		ts.push_back(sec);				//push time knot value back
 
 		nVertices = 0;
 		vec4 wItVec;
-		for (float i = 0; i < pts[pts.size()-1]; i += 0.01 ) {
-			wItVec = L(i);
+		for (float i = 0; i < its.back(); i += 0.01 ) {
+			wItVec = iL(i);
 
 			// fill interleaved data
 			vertexData[5 * nVertices] = wItVec.v[0];
@@ -542,7 +507,7 @@ public:
 
 
 #ifdef DEBUG 
-			if (i <= 0.05 || i+0.05 >= (pts.size()-1)) {
+			if (i <= 0.05 || i+0.05 >= (its.size()-1)) {
 				vertexData[5 * nVertices + 2] = 1; // red
 				vertexData[5 * nVertices + 3] = 0; // green
 				vertexData[5 * nVertices + 4] = 0; // blue
@@ -574,14 +539,14 @@ public:
 		printf("-------------------\n");
 		printf("ts size:\t%d\n", ts.size());
 		printf("ts[]:\n");
-		for (int i = 0; i < pts.size(); i++)
+		for (int i = 0; i < its.size(); i++)
 			printf("%4.2f\t", ts[i]);
 		printf("\n");
 		printf("-------------------\n");
-		printf("pts size:\t%d\n", pts.size());
+		printf("pts size:\t%d\n", its.size());
 		printf("pts[]:\n");
-		for (int i = 0; i < pts.size(); i++)
-			printf("%4.2f\t", pts[i]);
+		for (int i = 0; i < its.size(); i++)
+			printf("%4.2f\t", its[i]);
 		printf("\n");
 
 #endif
@@ -603,8 +568,115 @@ public:
 	}
 };
 
-// The virtual world: collection of two objects
-LagrangeRoute lineStrip;
+LagrangeRoute route;
+
+class Cyclist {
+	unsigned int vao;	// vertex array object id
+	float sx, sy;		// scaling
+	float wTx, wTy;		// translation
+
+	float time;
+	float tDiff;
+	bool active;
+public:
+	Cyclist() {
+		active = false;
+		sx = 1; sy = 1;
+		wTx = 0; wTy = 0;
+	}
+
+	void Start(float startTime) {
+		route.lock();
+		active = true;
+		time = route.ts[0];
+		tDiff = startTime - time;
+		Animate(tDiff);
+	}
+
+	void Create() {
+		glGenVertexArrays(1, &vao);	// create 1 vertex array object
+		glBindVertexArray(vao);		// make it active
+		unsigned int vbo[2];		// vertex buffer objects
+		glGenBuffers(2, &vbo[0]);	// Generate 2 vertex buffer objects
+									// Done with the makin part, baby
+
+									// vertex coordinates: vbo[0] -> Attrib Array 0 -> vertexPosition of the vertex shader
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]); // make it active, it is an array
+		static float vertexCoords[] = { 0,5,		-2, -5,		0, 0,		0, 5,		2, -5,		0, 0 };	// vertex data on the CPU
+		glBufferData(GL_ARRAY_BUFFER,   // copy to the GPU
+			sizeof(vertexCoords),		// number of the vbo in bytes
+			vertexCoords,				// address of the data array on the CPU
+			GL_STATIC_DRAW);			// copy to that part of the memory which is not modified 
+										// Map Attribute Array 0 to the current bound vertex buffer (vbo[0])
+		glEnableVertexAttribArray(0);
+		// Data organization of Attribute Array 0 
+		glVertexAttribPointer(0,	// Attribute Array 0
+			2, GL_FLOAT,			// components/attribute, component type
+			GL_FALSE,				// not in fixed point format, do not normalized
+			0, NULL);				// stride and offset: it is tightly packed
+
+									// vertex colors: vbo[1] -> Attrib Array 1 -> vertexColor of the vertex shader
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);	// make it active, it is an array
+		static float vertexColors[] = { 1, 0, 0,	 0, 0, 0,	 1, 0, 0,	 1, 0, 0,	 0, 0, 0,		1, 0, 0};						// vertex data on the CPU
+		glBufferData(GL_ARRAY_BUFFER, sizeof(vertexColors), vertexColors, GL_STATIC_DRAW);	// copy to the GPU
+																							// Map Attribute Array 1 to the current bound vertex buffer (vbo[1])
+		glEnableVertexAttribArray(1);			// Vertex position
+												// Data organization of Attribute Array 1
+		glVertexAttribPointer(1,	// Attribute Array 1,
+			3, GL_FLOAT,			// components/attribute, component type,
+			GL_FALSE,				// normalize?, 
+			0, NULL);				// tightly packed
+	}
+
+	void Animate(float curT) {
+		if (active) {
+			time = curT - tDiff;
+			vec4 pos = route.L(time);
+			vec4 dirVec = route.LD(time);
+			wTx = pos.v[0];
+			wTy = pos.v[1];
+
+#ifdef DEBUG
+			system("cls");
+			printf("sTime:\t%4.3f\n", tDiff);
+			printf("curT:\t%4.3f\n", curT);
+			printf("time:\t%4.3f\n", time);
+			printf("newPos:\t\t%4.1f\t%4.1f\t%4.1f\n", pos.v[0], pos.v[1], pos.v[2]);
+			printf("dirVec:\t\t%4.1f\t%4.1f\t%4.1f\n", dirVec.v[0], dirVec.v[1], dirVec.v[2]);
+#endif
+			if (time >= route.ts.back()) {
+				active = false;
+				route.unlock();
+			}
+		}
+	}
+
+	void Draw() {
+		if (!active) return;
+		
+		mat4 Mscale(sx, 0, 0, 0,
+			0, sy, 0, 0,
+			0, 0, 0, 0,
+			0, 0, 0, 1); // model matrix
+
+		mat4 Mtranslate(1, 0, 0, 0,
+			0, 1, 0, 0,
+			0, 0, 0, 0,
+			wTx, wTy, 0, 1); // model matrix
+
+		mat4 MVPTransform = Mscale * Mtranslate * camera.V() * camera.P();
+
+		// set GPU uniform matrix variable MVP with the content of CPU variable MVPTransform
+		int location = glGetUniformLocation(shaderProgram, "MVP");
+		if (location >= 0) glUniformMatrix4fv(location, 1, GL_TRUE, MVPTransform); // set uniform variable MVP to the MVPTransform
+		else printf("uniform MVP cannot be set\n");
+
+		glBindVertexArray(vao);	// make the vao and its vbos active playing the role of the data source
+		glDrawArrays(GL_TRIANGLES, 0, 6);	// draw a single triangle with vertices defined in vao
+	}
+};
+
+Cyclist cyclist;
 
 ////////////////////////////////////////////////
 // Initialization and events
@@ -615,8 +687,9 @@ void onInitialization() {
 	glViewport(0, 0, windowWidth, windowHeight);
 
 	// Create objects by setting up their vertex data on the GPU
-	lineStrip.Create();
+	route.Create();
 	bezierSurface.Create();
+	cyclist.Create();
 
 	// Create vertex shader from string
 	unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
@@ -666,16 +739,19 @@ void onExit() {
 void onDisplay() {
 	glClearColor(0, 0, 0, 0);							// background color 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the screen
-
+	
 	bezierSurface.Draw();
-	lineStrip.Draw();
+	route.Draw();
+	cyclist.Draw();
 
 	glutSwapBuffers();									// exchange the two buffers
 }
 
 // Key of ASCII code pressed
 void onKeyboard(unsigned char key, int pX, int pY) {
-	if (key == 'd') glutPostRedisplay();         // if d, invalidate display, i.e. redraw
+	long time = glutGet(GLUT_ELAPSED_TIME); // elapsed time since the start of the program
+	float sec = time / 1000.0f;				// convert msec to sec
+	if (key == ' ') cyclist.Start(sec);         // if d, invalidate display, i.e. redraw
 }
 
 // Key of ASCII code released
@@ -692,7 +768,7 @@ void onMouse(int button, int state, int pX, int pY) {
 		long time = glutGet(GLUT_ELAPSED_TIME); // elapsed time since the start of the program
 		float sec = time / 1000.0f;				// convert msec to sec
 
-		lineStrip.AddPoint(cX, cY, sec);
+		route.AddPoint(cX, cY, sec);
 		glutPostRedisplay();     // redraw
 	}
 }
@@ -705,7 +781,7 @@ void onMouseMotion(int pX, int pY) {
 void onIdle() {
 	long time = glutGet(GLUT_ELAPSED_TIME); // elapsed time since the start of the program
 	float sec = time / 1000.0f;				// convert msec to sec
-	camera.Animate(sec);					// animate the camera
+	cyclist.Animate(sec);					// animate the camera
 	glutPostRedisplay();					// redraw the scene
 }
 
@@ -743,7 +819,7 @@ int main(int argc, char * argv[]) {
 
 	glutDisplayFunc(onDisplay);                // Register event handlers
 	glutMouseFunc(onMouse);
-	//glutIdleFunc(onIdle);
+	glutIdleFunc(onIdle);
 	glutKeyboardFunc(onKeyboard);
 	glutKeyboardUpFunc(onKeyboardUp);
 	//glutMotionFunc(onMouseMotion);
