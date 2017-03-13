@@ -297,7 +297,6 @@ class BezierSurface {
 	}
 
 public:
-
 	vec4 wParamBS(float x, float y) {
 		return uvParamBS(100-y,x);
 	}
@@ -390,40 +389,26 @@ public:
 BezierSurface bezierSurface;
 
 class LagrangeRoute {
-	GLuint vao, vbo;        // vertex array object, vertex buffer object
-	float  vertexData[15000]; // interleaved data of coordinates and colors
-	int    nVertices;       // number of vertices
+	GLuint vao, vbo;			// vertex array object, vertex buffer object
+	float  vertexData[150000];	// interleaved data of coordinates and colors
+	int    nVertices;			// number of vertices
 
-	std::vector<vec4>  cps;	// control points
-	std::vector<float> its; 	// incremental (knot) values
+	std::vector<vec4>  cps;		// control points
+	//std::vector<float> its; 	// incremental (knot) values
 
-	float il(int i, float t) {
-		float Li = 1.0f;
-		for (int j = 0; j < cps.size(); j++)
-			if (j != i) Li *= (t - its[j]) / (its[i] - its[j]);
-		return Li;
-	}
-
-	float ild(int i, float t) {
-		float res = 0;
-		for (int j = 0; j < cps.size(); j++)
-			if (j != i) res += 1 / (t - its[j]);
-		res *= il(i, t);
-		return res;
-	}
-
-	//Incremental lagrange interpolation
-	vec4 iL(float t) {
-		vec4 rr(0, 0, 0);
-		for (int i = 0; i < cps.size(); i++) rr += cps[i] * il(i, t);
-		return rr;
-	}
-	//Incremental lagrange interpolation first derivative
-	vec4 iLD(float t) {
-		vec4 rr(0, 0, 0);
-		for (int i = 0; i < cps.size(); i++) rr += cps[i] * ild(i, t);
-		return rr;
-	}
+	//float il(int i, float t) {
+	//	float Li = 1.0f;
+	//	for (int j = 0; j < cps.size(); j++)
+	//		if (j != i) Li *= (t - its[j]) / (its[i] - its[j]);
+	//	return Li;
+	//}
+	//float ild(int i, float t) {
+	//	float res = 0;
+	//	for (int j = 0; j < cps.size(); j++)
+	//		if (j != i) res += 1 / (t - its[j]);
+	//	res *= il(i, t);
+	//	return res;
+	//}
 
 	float l(int i, float t) {
 		float Li = 1.0f;
@@ -436,7 +421,7 @@ class LagrangeRoute {
 		float res = 0;
 		for (int j = 0; j < cps.size(); j++)
 			if (j != i) res += 1 / (t - ts[j]);
-		res *= il(i, t);
+		res *= l(i, t);
 		return res;
 	}
 	bool rLock;
@@ -456,6 +441,19 @@ public:
 		for (int i = 0; i < cps.size(); i++) rr += cps[i] * ld(i, t);
 		return rr;
 	}
+
+	////Incremental lagrange interpolation
+	//vec4 iL(float t) {
+	//	vec4 rr(0, 0, 0);
+	//	for (int i = 0; i < cps.size(); i++) rr += cps[i] * il(i, t);
+	//	return rr;
+	//}
+	////Incremental lagrange interpolation first derivative
+	//vec4 iLD(float t) {
+	//	vec4 rr(0, 0, 0);
+	//	for (int i = 0; i < cps.size(); i++) rr += cps[i] * ild(i, t);
+	//	return rr;
+	//}
 
 	void Create() {
 		rLock = false;
@@ -492,22 +490,23 @@ public:
 		//Create the new control point from the click params
 		vec4 preWVec = vec4(cX, cY, 0, 1) * camera.Pinv() * camera.Vinv();
 		vec4 wVec = bezierSurface.wParamBS(preWVec.v[0], preWVec.v[1]);
-		its.push_back(cps.size());		//push incremental knot value back
+
+		//its.push_back(cps.size());		//push incremental knot value back
 		cps.push_back(wVec);			//push control point back
 		ts.push_back(sec);				//push time knot value back
 
 		nVertices = 0;
 		vec4 wItVec;
-		for (float i = 0; i < its.back(); i += 0.01 ) {
-			wItVec = iL(i);
+		float ival = (ts.back() - ts.front()) / 1000;
+		for (float i = ts.front(); i < ts.back(); i += ival) {
+			wItVec = L(i);
 
 			// fill interleaved data
 			vertexData[5 * nVertices] = wItVec.v[0];
 			vertexData[5 * nVertices + 1] = wItVec.v[1];
 
-
 #ifdef DEBUG 
-			if (i <= 0.05 || i+0.05 >= (its.size()-1)) {
+			if (i <= ts.front()+0.05 || i+0.05 >= ts.back()) {
 				vertexData[5 * nVertices + 2] = 1; // red
 				vertexData[5 * nVertices + 3] = 0; // green
 				vertexData[5 * nVertices + 4] = 0; // blue
@@ -539,15 +538,15 @@ public:
 		printf("-------------------\n");
 		printf("ts size:\t%d\n", ts.size());
 		printf("ts[]:\n");
-		for (int i = 0; i < its.size(); i++)
+		for (int i = 0; i < ts.size(); i++)
 			printf("%4.2f\t", ts[i]);
 		printf("\n");
-		printf("-------------------\n");
-		printf("pts size:\t%d\n", its.size());
-		printf("pts[]:\n");
-		for (int i = 0; i < its.size(); i++)
-			printf("%4.2f\t", its[i]);
-		printf("\n");
+		//printf("-------------------\n");
+		//printf("its size:\t%d\n", its.size());
+		//printf("its[]:\n");
+		//for (int i = 0; i < its.size(); i++)
+		//	printf("%4.2f\t", its[i]);
+		//printf("\n");
 
 #endif
 		// copy data to the GPU
