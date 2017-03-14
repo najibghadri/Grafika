@@ -416,9 +416,6 @@ class LagrangeRoute {
 	bool rLock;					//Lock when cyclist goes through
 
 
-
-
-
 ///////////////////////////////////////
 // Lagrange curves
 //////////////////
