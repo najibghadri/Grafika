@@ -415,63 +415,57 @@ class LagrangeRoute {
 
 	bool rLock;					//Lock when cyclist goes through
 
-
 ///////////////////////////////////////
 // Lagrange curves
 //////////////////
-	std::vector<vec4>  cps;		// control points
+public:
 	std::vector<float> its; 	// incremental (knot) values
+	std::vector<float> ts;		// time (knot) values
+	std::vector<vec4>  cps;		// control points
 
-//INCREMENTAL LAGRANGE INTERPOLATION
-
-
-//TIME BASED LAGRANGE INTERPOLATION
-public:
-	std::vector<float> ts; 	// time (knot) values
-
-	//CPS Lagrange interpolation by time
-	vec4 time2IncrementL2CPL(float t) {
-		vec4 rr(0, 0, 0);
-		for (int i = 0; i < cps.size(); i++) rr += cps[i] * l_base_Time2IncrementL(i, t);
-		return rr;
-	}
-private:
-	float l_base_Time2IncrementL(int i, float time) {
-		float Li = 1.0f;
-		for (int j = 0; j < cps.size(); j++)
-			if (j != i) Li *= (time2IncrementL(time) - its[j]) / (its[i] - its[j]);
-		return Li;
-	}
-
-public:
-	//Lagrange curve first derivative
-	vec4 time2IncrementL2CPL_D(float time) {
-		vec4 rr(0, 0, 0);
-		for (int i = 0; i < cps.size(); i++) rr += cps[i] * ld_base_Time2IncrementL(i, time);
-		return rr;
-	}
-
-private:
-	float ld_base_Time2IncrementL(int i, float time) {
-		float res = 0;
-		for (int j = 0; j < cps.size(); j++)
-			if (j != i) res += 1 / (time2IncrementL(time) - its[j]);
-		res *= l_base_Time2IncrementL(i, time);
-		return res;
-	}
-
-	//Increment lagrange interpolation by time
-	float time2IncrementL(float time) {
+	//ITS Lagrange interpolation by TIME
+	//in : time,  out : time based its
+	float ITS_L(float time) {
 		float rr = 0;
-		for (int i = 0; i < its.size(); i++) rr += its[i] * l_base_Time(i, time);
+		for (int i = 0; i < cps.size(); i++) rr += its[i] * ITS_l_base(i, time);
 		return rr;
 	}
-
-	float l_base_Time(int i, float time) {
+	//in : time,  out : time based its weight
+	float ITS_l_base(int i, float time) {
 		float Li = 1.0f;
-		for (int j = 0; j < ts.size(); j++)
+		for (int j = 0; j < cps.size(); j++)
 			if (j != i) Li *= (time - ts[j]) / (ts[i] - ts[j]);
 		return Li;
+	}
+
+	//CPS Lagrange interpolation by UNIFORM INCREMENT (its)
+	//in : its value,  out : cps
+	vec4 CPS_L(float t) {
+		vec4 rr(0, 0, 0);
+		for (int i = 0; i < cps.size(); i++) rr += cps[i] * CPS_l_base(i, t);
+		return rr;
+	}
+	float CPS_l_base(int i, float t) {
+		float Li = 1.0f;
+		for (int j = 0; j < cps.size(); j++)
+			if (j != i) Li *= (t - its[j]) / (its[i] - its[j]);
+		return Li;
+	}
+
+	//CPS Lagrange curve derivative by UNIFORM INCREMENT (its)
+	//in : time,  out : direction vector
+	vec4 CPS_D(float t) {
+		vec4 rr(0, 0, 0);
+		for (int i = 0; i < cps.size(); i++) rr += cps[i] * CPS_base_D(i, t);
+		return rr;
+	}
+
+	float CPS_base_D(int i, float t) {
+		float res = 0;
+		for (int j = 0; j < cps.size(); j++)
+			if (j != i) res += 1 / (t - its[j]);
+		res *= CPS_l_base(i, t);
+		return res;
 	}
 //////////////////
 // Lagrange curves end
@@ -513,23 +507,22 @@ public:
 		//Create the new control point from the click params
 		vec4 wVec = vec4(cX, cY, 0, 1) * camera.Pinv() * camera.Vinv();
 
-		//its.push_back(cps.size());		//push incremental knot value back
+		its.push_back(cps.size());		//push incremental knot value back
 		cps.push_back(wVec);			//push control point back
 		ts.push_back(sec);				//push time knot value back
 
 		nVertices = 0;
 		vec4 wItVec;
-		float ival = (ts.back() - ts.front()) / 1000;
 
-		for (float i = ts.front(); i < ts.back(); i += ival) {
-			wItVec = time2IncrementL2CPL(i);
+		for (float i = its.front(); i <= its.back(); i += 0.01) {
+			wItVec = CPS_L(i);
 
 			// fill interleaved data
 			vertexData[5 * nVertices] = wItVec.v[0];
 			vertexData[5 * nVertices + 1] = wItVec.v[1];
 
 #ifdef DEBUG 
-			if (i <= ts.front()+0.05 || i+0.05 >= ts.back()) {
+			if (i <= its.front()+0.05 || i+0.05 >= its.back()) {
 				vertexData[5 * nVertices + 2] = 1; // red
 				vertexData[5 * nVertices + 3] = 0; // green
 				vertexData[5 * nVertices + 4] = 0; // blue
@@ -552,24 +545,27 @@ public:
 		printf("wVec:\t\t%4.1f\t%4.1f\t%4.1f\n", wVec.v[0], wVec.v[1], wVec.v[2]);
 		printf("height:\t%4.1f\n", bezierSurface.wBS(wVec.v[0], wVec.v[1]).v[2]);
 		printf("nVertices:\t%d\n", nVertices);
+
 		printf("-------------------\n");
 		printf("cps size:\t%d\n", cps.size());
 		printf("cps[]:\n");
 		for (int i = 0; i < cps.size(); i++)
 			printf("%4.1f, %4.1f, %4.1f\t", cps[i].v[0], cps[i].v[1], cps[i].v[2]);
 		printf("\n");
+
 		printf("-------------------\n");
 		printf("ts size:\t%d\n", ts.size());
 		printf("ts[]:\n");
 		for (int i = 0; i < ts.size(); i++)
 			printf("%4.2f\t", ts[i]);
 		printf("\n");
-		//printf("-------------------\n");
-		//printf("its size:\t%d\n", its.size());
-		//printf("its[]:\n");
-		//for (int i = 0; i < its.size(); i++)
-		//	printf("%4.2f\t", its[i]);
-		//printf("\n");
+		
+		printf("-------------------\n");
+		printf("its size:\t%d\n", its.size());
+		printf("its[]:\n");
+		for (int i = 0; i < its.size(); i++)
+			printf("%4.2f\t", its[i]);
+		printf("\n");
 
 #endif
 		// copy data to the GPU
@@ -606,6 +602,7 @@ public:
 		active = false;
 		sx = 1; sy = 1;
 		wTx = 0; wTy = 0;
+		r11 = 1; r12 = 0; r21 = 0; r22 = 1;
 	}
 
 	void Start(float startTime) {
@@ -613,7 +610,7 @@ public:
 		active = true;
 		time = route.ts[0];
 		tDiff = startTime - time;
-		Animate(tDiff);
+		Animate(startTime);
 	}
 
 	void Create() {
@@ -654,33 +651,55 @@ public:
 	void Animate(float curT) {
 		if (active) {
 			time = curT - tDiff;
-			vec4 pos = route.time2IncrementL2CPL(time);
+			float its = route.ITS_L(time);
+			vec4 pos = route.CPS_L(its);
 			vec4 sPos = bezierSurface.wBS(pos.v[0], pos.v[1]);
-			vec4 dirV = route.time2IncrementL2CPL_D(time);
+			vec4 dirV = route.CPS_D(its);
 			vec4 grad = bezierSurface.wdBS(pos.v[0], pos.v[1]);
-			dirV.v[2] = grad.v[2];
 
 			wTx = pos.v[0];
 			wTy = pos.v[1];
 
-			float theta = acos(dirV.dot(vec4(0, 1, 0)) / (dirV.length()));
+			//float theta = acos(dirV.dot(vec4(0, 1, 0)) / (dirV.length()));
 
-			r11 = cos(theta);
-			r12 = -sin(theta);
-			r21 = sin(theta);
-			r22 = cos(theta);
+			//r11 = cos(theta);
+			//r12 = -sin(theta);
+			//r21 = sin(theta);
+			//r22 = cos(theta);
 
 #ifdef DEBUG
 			system("cls");
 			printf("sTime:\t%4.3f\n", tDiff);
 			printf("curT:\t%4.3f\n", curT);
 			printf("time:\t%4.3f\n", time);
+			printf("ITS:\t%4.3f\n", its);
 			printf("xypos:\t\t%4.1f\t%4.1f\t%4.1f\n", pos.v[0], pos.v[1], pos.v[2]);
 			printf("3DPos:\t\t%4.1f\t%4.1f\t%4.1f\n", sPos.v[0], sPos.v[1], sPos.v[2]);
 			printf("dirVec:\t\t%4.1f\t%4.1f\t%4.1f\n", dirV.v[0], dirV.v[1], dirV.v[2]);
 			printf("grad:\t\t%4.1f\t%4.1f\t%4.1f\n", grad.v[0], grad.v[1], grad.v[2]);
-			vec4 temp = vec4(dirV.v[0], dirV.v[1], 0);
-			printf("TILT:\t%4.2f", acos(dirV.dot(temp) / (temp.length()*dirV.length())));
+
+			printf("-------------------\n");
+			printf("ts size:\t%d\n", route.ts.size());
+			printf("ts[]:\n");
+			for (int i = 0; i < route.ts.size(); i++)
+				printf("%4.2f\t", route.ts[i]);
+			printf("\n");
+
+			printf("-------------------\n");
+			printf("its size:\t%d\n", route.its.size());
+			printf("its[]:\n");
+			for (int i = 0; i < route.its.size(); i++)
+				printf("%4.2f\t", route.its[i]);
+			printf("\n");
+
+			printf("-------------------\n");
+			printf("cps size:\t%d\n", route.cps.size());
+			printf("cps[]:\n");
+			for (int i = 0; i < route.cps.size(); i++)
+				printf("%4.1f, %4.1f, %4.1f\t", route.cps[i].v[0], route.cps[i].v[1], route.cps[i].v[2]);
+			printf("\n");
+
+			//printf("TILT:\t%4.2f", acos(dirV.dot(temp) / (temp.length()*dirV.length())));
 #endif
 			if (time >= route.ts.back()) {
 				active = false;
