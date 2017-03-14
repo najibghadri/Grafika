@@ -254,7 +254,6 @@ unsigned int shaderProgram;
 ////////////////////////////////////////////////
 #define DEBUG
 
-
 class BezierSurface {
 	GLuint vao, vbo;		// vertex array object, vertex buffer object
 	float wVertexData[5000];	// data of coordinates and colors
@@ -263,19 +262,12 @@ class BezierSurface {
 	//Control points gird size
 	int cpsSize = 5;
 	vec4 const cps[5][5] = {
-		vec4(0,	100,	0),		vec4(25,	100,	60),	vec4(50, 100,	25),	vec4(75,	100,	10),	 vec4(100,	100,0),
-		vec4(0,	75,		30),	vec4(25,	75,		100),	vec4(50, 75,	90),	vec4(75,	75,		40),	 vec4(100,	75,	10),
-		vec4(0,	50,		40),	vec4(25,	50,		100),	vec4(50, 50,	100),	vec4(75,	50,		90),	 vec4(100,	50,	60),
-		vec4(0,	25,		30),	vec4(25,	25,		40),	vec4(50, 25,	40),	vec4(75,	25,		50),	 vec4(100,	25,	60),
-		vec4(0,	0,		60),	vec4(25,	0,		40),	vec4(50, 0,		25),	vec4(75,	0,		30),	 vec4(100,	0,	100),
+		vec4(0,	100,	0),		vec4(25,	100,	0),		vec4(50, 100,	0),		vec4(75,	100,	0),		 vec4(100,	100,0),
+		vec4(0,	75,		0),		vec4(25,	75,		60),	vec4(50, 75,	70),	vec4(75,	75,		40),	 vec4(100,	75,	10),
+		vec4(0,	50,		30),	vec4(25,	50,		200),	vec4(50, 50,	200),	vec4(75,	50,		40),	 vec4(100,	50,	60),
+		vec4(0,	25,		30),	vec4(25,	25,		70),	vec4(50, 25,	40),	vec4(75,	25,		50),	 vec4(100,	25,	60),
+		vec4(0,	0,		60),	vec4(25,	0,		40),	vec4(50, 0,		0),		vec4(75,	0,		30),	 vec4(100,	0,	100),
 	};	// vertex data on the CPU
-
-	float B(int i, float t) {
-		int n = cpsSize - 1; // n deg polynomial = n+1 pts!
-		float choose = 1;
-		for (int j = 1; j <= i; j++) choose *= (float)(n - j + 1) / j;
-		return choose * pow(t, i) * pow(1 - t, n - i);
-	}
 
 	vec4 zColorInterp(const vec4& vec) {
 		float z = vec.v[2];
@@ -286,7 +278,14 @@ class BezierSurface {
 		return vec4(0, green, blue, 0);
 	}
 
-	vec4 uvParamBS(float u, float v) {
+	float B(int i, float t) {
+		int n = cpsSize - 1; // n deg polynomial = n+1 pts!
+		float choose = 1;
+		for (int j = 1; j <= i; j++) choose *= (float)(n - j + 1) / j;
+		return choose * pow(t, i) * pow(1 - t, n - i);
+	}
+
+	vec4 BS(float u, float v) {
 		u = u / 100;
 		v = v / 100;
 		vec4 rr(0, 0, 0);
@@ -296,9 +295,30 @@ class BezierSurface {
 		return rr;
 	}
 
+	float dB(int i, float t) {
+		int n = cpsSize - 2; // n deg polynomial = n+1 pts, -1 for derivative equation
+		float choose = 1;
+		for (int j = 1; j <= i; j++) choose *= (float)(n - j + 1) / j;
+		return choose * pow(t, i) * pow(1 - t, n - i);
+	}
+
+	vec4 dBS(float u, float v) {
+		u = u / 100;
+		v = v / 100;
+		vec4 rr(0, 0, 0);
+		for (int n = 0; n < cpsSize - 1; n++) 
+			for (int m = 0; m < cpsSize - 1; m++)
+				rr += (cps[n+1][m + 1] - cps[n][m]) * dB(n, u) * dB(m, v);
+
+		return rr;
+	}
+
 public:
-	vec4 wParamBS(float x, float y) {
-		return uvParamBS(100-y,x);
+	vec4 wBS(float x, float y) {
+		return BS(100-y,x);
+	}
+	vec4 wdBS(float x, float y) {
+		return dBS(100 - y, x);
 	}
 
 	void Create() {
@@ -327,7 +347,7 @@ public:
 		//World size is 100 and model resolution is 5:
 		for (u = 0; u <= 100 - 5; u += 5) {
 			for (v = 0; v <= 100; v += 5) {
-				wNextVec = uvParamBS(u, v);
+				wNextVec = BS(u, v);
 				nextCol = zColorInterp(wNextVec);
 				// triangle left bot (and right bot)
 				wVertexData[5 * nVertices] = wNextVec.v[0];
@@ -337,7 +357,7 @@ public:
 				wVertexData[5 * nVertices + 4] = nextCol.v[2]; // blue
 				nVertices++;
 
-				wNextVec = uvParamBS(u + 5, v);
+				wNextVec = BS(u + 5, v);
 				nextCol = zColorInterp(wNextVec);
 				// triangle left top (and right top)
 				wVertexData[5 * nVertices] = wNextVec.v[0];
@@ -347,7 +367,7 @@ public:
 				wVertexData[5 * nVertices + 4] = nextCol.v[2]; // blue
 				nVertices++;
 			}
-			wNextVec = uvParamBS(u + 5, v - 5);
+			wNextVec = BS(u + 5, v - 5);
 			nextCol = zColorInterp(wNextVec);
 			// first terminal
 			wVertexData[5 * nVertices] = wNextVec.v[0];
@@ -357,7 +377,7 @@ public:
 			wVertexData[5 * nVertices + 4] = nextCol.v[2]; // blue
 			nVertices++;
 
-			wNextVec = uvParamBS(u + 5 , 0);
+			wNextVec = BS(u + 5 , 0);
 			nextCol = zColorInterp(wNextVec);
 			// first starter)
 			wVertexData[5 * nVertices] = wNextVec.v[0];
@@ -393,67 +413,73 @@ class LagrangeRoute {
 	float  vertexData[150000];	// interleaved data of coordinates and colors
 	int    nVertices;			// number of vertices
 
+	bool rLock;					//Lock when cyclist goes through
+
+
+
+
+
+///////////////////////////////////////
+// Lagrange curves
+//////////////////
 	std::vector<vec4>  cps;		// control points
-	//std::vector<float> its; 	// incremental (knot) values
+	std::vector<float> its; 	// incremental (knot) values
 
-	//float il(int i, float t) {
-	//	float Li = 1.0f;
-	//	for (int j = 0; j < cps.size(); j++)
-	//		if (j != i) Li *= (t - its[j]) / (its[i] - its[j]);
-	//	return Li;
-	//}
-	//float ild(int i, float t) {
-	//	float res = 0;
-	//	for (int j = 0; j < cps.size(); j++)
-	//		if (j != i) res += 1 / (t - its[j]);
-	//	res *= il(i, t);
-	//	return res;
-	//}
+//INCREMENTAL LAGRANGE INTERPOLATION
 
-	float l(int i, float t) {
-		float Li = 1.0f;
-		for (int j = 0; j < cps.size(); j++)
-			if (j != i) Li *= (t - ts[j]) / (ts[i] - ts[j]);
-		return Li;
-	}
 
-	float ld(int i, float t) {
-		float res = 0;
-		for (int j = 0; j < cps.size(); j++)
-			if (j != i) res += 1 / (t - ts[j]);
-		res *= l(i, t);
-		return res;
-	}
-	bool rLock;
+//TIME BASED LAGRANGE INTERPOLATION
 public:
 	std::vector<float> ts; 	// time (knot) values
 
-	//Lagrange interpolation by time values
-	vec4 L(float t) {
+	//CPS Lagrange interpolation by time
+	vec4 time2IncrementL2CPL(float t) {
 		vec4 rr(0, 0, 0);
-		for (int i = 0; i < cps.size(); i++) rr += cps[i] * l(i, t);
+		for (int i = 0; i < cps.size(); i++) rr += cps[i] * l_base_Time2IncrementL(i, t);
 		return rr;
 	}
+private:
+	float l_base_Time2IncrementL(int i, float time) {
+		float Li = 1.0f;
+		for (int j = 0; j < cps.size(); j++)
+			if (j != i) Li *= (time2IncrementL(time) - its[j]) / (its[i] - its[j]);
+		return Li;
+	}
 
+public:
 	//Lagrange curve first derivative
-	vec4 LD(float t) {
+	vec4 time2IncrementL2CPL_D(float time) {
 		vec4 rr(0, 0, 0);
-		for (int i = 0; i < cps.size(); i++) rr += cps[i] * ld(i, t);
+		for (int i = 0; i < cps.size(); i++) rr += cps[i] * ld_base_Time2IncrementL(i, time);
 		return rr;
 	}
 
-	////Incremental lagrange interpolation
-	//vec4 iL(float t) {
-	//	vec4 rr(0, 0, 0);
-	//	for (int i = 0; i < cps.size(); i++) rr += cps[i] * il(i, t);
-	//	return rr;
-	//}
-	////Incremental lagrange interpolation first derivative
-	//vec4 iLD(float t) {
-	//	vec4 rr(0, 0, 0);
-	//	for (int i = 0; i < cps.size(); i++) rr += cps[i] * ild(i, t);
-	//	return rr;
-	//}
+private:
+	float ld_base_Time2IncrementL(int i, float time) {
+		float res = 0;
+		for (int j = 0; j < cps.size(); j++)
+			if (j != i) res += 1 / (time2IncrementL(time) - its[j]);
+		res *= l_base_Time2IncrementL(i, time);
+		return res;
+	}
+
+	//Increment lagrange interpolation by time
+	float time2IncrementL(float time) {
+		float rr = 0;
+		for (int i = 0; i < its.size(); i++) rr += its[i] * l_base_Time(i, time);
+		return rr;
+	}
+
+	float l_base_Time(int i, float time) {
+		float Li = 1.0f;
+		for (int j = 0; j < ts.size(); j++)
+			if (j != i) Li *= (time - ts[j]) / (ts[i] - ts[j]);
+		return Li;
+	}
+//////////////////
+// Lagrange curves end
+///////////////////////////////////////
+public:
 
 	void Create() {
 		rLock = false;
@@ -488,8 +514,7 @@ public:
 #endif
 
 		//Create the new control point from the click params
-		vec4 preWVec = vec4(cX, cY, 0, 1) * camera.Pinv() * camera.Vinv();
-		vec4 wVec = bezierSurface.wParamBS(preWVec.v[0], preWVec.v[1]);
+		vec4 wVec = vec4(cX, cY, 0, 1) * camera.Pinv() * camera.Vinv();
 
 		//its.push_back(cps.size());		//push incremental knot value back
 		cps.push_back(wVec);			//push control point back
@@ -498,8 +523,9 @@ public:
 		nVertices = 0;
 		vec4 wItVec;
 		float ival = (ts.back() - ts.front()) / 1000;
+
 		for (float i = ts.front(); i < ts.back(); i += ival) {
-			wItVec = L(i);
+			wItVec = time2IncrementL2CPL(i);
 
 			// fill interleaved data
 			vertexData[5 * nVertices] = wItVec.v[0];
@@ -526,8 +552,8 @@ public:
 
 #ifdef DEBUG
 		printf("cX:\t%4.3f\tcY:\t%4.3f\n", cX, cY);
-		printf("preWVec:\t%4.1f\t%4.1f\t%4.1f\n", preWVec.v[0], preWVec.v[1], preWVec.v[2]);
 		printf("wVec:\t\t%4.1f\t%4.1f\t%4.1f\n", wVec.v[0], wVec.v[1], wVec.v[2]);
+		printf("height:\t%4.1f\n", bezierSurface.wBS(wVec.v[0], wVec.v[1]).v[2]);
 		printf("nVertices:\t%d\n", nVertices);
 		printf("-------------------\n");
 		printf("cps size:\t%d\n", cps.size());
@@ -573,6 +599,7 @@ class Cyclist {
 	unsigned int vao;	// vertex array object id
 	float sx, sy;		// scaling
 	float wTx, wTy;		// translation
+	float r11, r12, r21, r22;		// translation
 
 	float time;
 	float tDiff;
@@ -630,18 +657,33 @@ public:
 	void Animate(float curT) {
 		if (active) {
 			time = curT - tDiff;
-			vec4 pos = route.L(time);
-			vec4 dirVec = route.LD(time);
+			vec4 pos = route.time2IncrementL2CPL(time);
+			vec4 sPos = bezierSurface.wBS(pos.v[0], pos.v[1]);
+			vec4 dirV = route.time2IncrementL2CPL_D(time);
+			vec4 grad = bezierSurface.wdBS(pos.v[0], pos.v[1]);
+			dirV.v[2] = grad.v[2];
+
 			wTx = pos.v[0];
 			wTy = pos.v[1];
+
+			float theta = acos(dirV.dot(vec4(0, 1, 0)) / (dirV.length()));
+
+			r11 = cos(theta);
+			r12 = -sin(theta);
+			r21 = sin(theta);
+			r22 = cos(theta);
 
 #ifdef DEBUG
 			system("cls");
 			printf("sTime:\t%4.3f\n", tDiff);
 			printf("curT:\t%4.3f\n", curT);
 			printf("time:\t%4.3f\n", time);
-			printf("newPos:\t\t%4.1f\t%4.1f\t%4.1f\n", pos.v[0], pos.v[1], pos.v[2]);
-			printf("dirVec:\t\t%4.1f\t%4.1f\t%4.1f\n", dirVec.v[0], dirVec.v[1], dirVec.v[2]);
+			printf("xypos:\t\t%4.1f\t%4.1f\t%4.1f\n", pos.v[0], pos.v[1], pos.v[2]);
+			printf("3DPos:\t\t%4.1f\t%4.1f\t%4.1f\n", sPos.v[0], sPos.v[1], sPos.v[2]);
+			printf("dirVec:\t\t%4.1f\t%4.1f\t%4.1f\n", dirV.v[0], dirV.v[1], dirV.v[2]);
+			printf("grad:\t\t%4.1f\t%4.1f\t%4.1f\n", grad.v[0], grad.v[1], grad.v[2]);
+			vec4 temp = vec4(dirV.v[0], dirV.v[1], 0);
+			printf("TILT:\t%4.2f", acos(dirV.dot(temp) / (temp.length()*dirV.length())));
 #endif
 			if (time >= route.ts.back()) {
 				active = false;
@@ -652,18 +694,23 @@ public:
 
 	void Draw() {
 		if (!active) return;
+
+		mat4 Mrotate(r11, r12, 0, 0,   //rotation
+					r21, r22, 0, 0,
+					0, 0, 0, 0,
+					0, 0, 0, 1); // model matrix
 		
 		mat4 Mscale(sx, 0, 0, 0,
-			0, sy, 0, 0,
-			0, 0, 0, 0,
-			0, 0, 0, 1); // model matrix
+					0, sy, 0, 0,
+					0, 0, 0, 0,
+					0, 0, 0, 1); // model matrix
 
 		mat4 Mtranslate(1, 0, 0, 0,
-			0, 1, 0, 0,
-			0, 0, 0, 0,
-			wTx, wTy, 0, 1); // model matrix
+						0, 1, 0, 0,
+						0, 0, 0, 0,
+						wTx, wTy, 0, 1); // model matrix
 
-		mat4 MVPTransform = Mscale * Mtranslate * camera.V() * camera.P();
+		mat4 MVPTransform = Mrotate * Mscale * Mtranslate * camera.V() * camera.P();
 
 		// set GPU uniform matrix variable MVP with the content of CPU variable MVPTransform
 		int location = glGetUniformLocation(shaderProgram, "MVP");
