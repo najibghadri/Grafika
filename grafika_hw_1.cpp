@@ -252,7 +252,7 @@ unsigned int shaderProgram;
 ////////////////////////////////////////////////
 // Models
 ////////////////////////////////////////////////
-//#define DEBUG
+#define DEBUG
 
 class BezierSurface {
 	GLuint vao, vbo;		// vertex array object, vertex buffer object
@@ -261,30 +261,42 @@ class BezierSurface {
 
 	//Control points gird size
 	int cpsSize = 5;
-	vec4 const cps[5][5] = 
-		{
-			vec4(0,	100,	0),		vec4(25,	100,	0),		vec4(50, 100,	0),		vec4(75,	100,	0),		 vec4(100,	100,0),
-			vec4(0,	75,		0),		vec4(25,	75,		60),	vec4(50, 75,	70),	vec4(75,	75,		40),	 vec4(100,	75,	10),
-			vec4(0,	50,		30),	vec4(25,	50,		200),	vec4(50, 50,	200),	vec4(75,	50,		40),	 vec4(100,	50,	60),
-			vec4(0,	25,		30),	vec4(25,	25,		70),	vec4(50, 25,	40),	vec4(75,	25,		50),	 vec4(100,	25,	60),
-			vec4(0,	0,		60),	vec4(25,	0,		40),	vec4(50, 0,		0),		vec4(75,	0,		30),	 vec4(100,	0,	100)
-		};	// vertex data on the CPU
-		//{
-		//	vec4(0,	100,	0),		vec4(25,	100,	25),		vec4(50, 100,	50),		vec4(75,	100,	75),	 vec4(100,	100,100),
-		//	vec4(0,	75,		0),		vec4(25,	75,		25),		vec4(50, 75,	50),		vec4(75,	75,		75),	 vec4(100,	75,	100),
-		//	vec4(0,	50,		0),		vec4(25,	50,		25),		vec4(50, 50,	50),		vec4(75,	50,		75),	 vec4(100,	50,	100),
-		//	vec4(0,	25,		0),		vec4(25,	25,		25),		vec4(50, 25,	50),		vec4(75,	25,		75),	 vec4(100,	25,	100),
-		//	vec4(0,	0,		0),		vec4(25,	0,		25),		vec4(50, 0,		50),		vec4(75,	0,		75),	 vec4(100,	0,	100)
-		//};	// vertex data on the CPU
+
+	//vec4 const cps[5][5] = 
+	//	{
+	//		vec4(0,	100,	0),		vec4(25,	100,	25),		vec4(50, 100,	50),		vec4(75,	100,	75),	 vec4(100,	100,100),
+	//		vec4(0,	75,		0),		vec4(25,	75,		25),		vec4(50, 75,	50),		vec4(75,	75,		75),	 vec4(100,	75,	100),
+	//		vec4(0,	50,		0),		vec4(25,	50,		25),		vec4(50, 50,	50),		vec4(75,	50,		75),	 vec4(100,	50,	100),
+	//		vec4(0,	25,		0),		vec4(25,	25,		25),		vec4(50, 25,	50),		vec4(75,	25,		75),	 vec4(100,	25,	100),
+	//		vec4(0,	0,		0),		vec4(25,	0,		25),		vec4(50, 0,		50),		vec4(75,	0,		75),	 vec4(100,	0,	100)
+	//	};	// Left Right
+
+	//vec4 const cps[5][5] =
+	//	{
+	//		vec4(0,	100,		 0),	vec4(25,	100,		 0),		vec4(50, 100,		 0),		vec4(75,	100,		 0),	 vec4(100,	100,	 0),
+	//		vec4(0,	75,			25),	vec4(25,	75,			25),		vec4(50, 75,		25),		vec4(75,	75,			25),	 vec4(100,	75,		25),
+	//		vec4(0,	50,			50),	vec4(25,	50,			50),		vec4(50, 50,		50),		vec4(75,	50,			50),	 vec4(100,	50,		50),
+	//		vec4(0,	25,			75),	vec4(25,	25,			75),		vec4(50, 25,		75),		vec4(75,	25,			75),	 vec4(100,	25,		75),
+	//		vec4(0,	0,		   100),	vec4(25,	0,		   100),		vec4(50, 0,		   100),		vec4(75,	0,		   100),	 vec4(100,	0,	   100)
+	//	};	// Top-down
+
+	//vec4 const cps[5][5] =
 	//{
 	//	vec4(0,	100,	0),		vec4(25,	100,	 0),		vec4(50, 100,	25),		vec4(75,	100,	25),	 vec4(100,	100, 50),
 	//	vec4(0,	75,		0),		vec4(25,	75,		 25),		vec4(50, 75,	25),		vec4(75,	75,		50),	 vec4(100,	75, 75),
 	//	vec4(0,	50,		25),	vec4(25,	50,		25),		vec4(50, 50,	50),		vec4(75,	50,		75),	 vec4(100,	50, 75),
 	//	vec4(0,	25,		25),	vec4(25,	25,		50),		vec4(50, 25,	75),		vec4(75,	25,		75),	 vec4(100,	25,	100),
 	//	vec4(0,	0,		50),	vec4(25,	0,		75),		vec4(50, 0,		75),		vec4(75,	0,		100),	 vec4(100,	0,	100)
-	//};	// vertex data on the CPU
+	//};	// BR->TL
 
-
+	vec4 const cps[5][5] =
+	{
+		vec4(0,	100,	0),		vec4(25,	100,	0),		vec4(50, 100,	0),		vec4(75,	100,	0),		 vec4(100,	100,0),
+		vec4(0,	75,		0),		vec4(25,	75,		60),	vec4(50, 75,	70),	vec4(75,	75,		40),	 vec4(100,	75,	60),
+		vec4(0,	50,		0),		vec4(25,	50,		200),	vec4(50, 50,	200),	vec4(75,	50,		40),	 vec4(100,	50,	0),
+		vec4(0,	25,		30),	vec4(25,	25,		70),	vec4(50, 25,	40),	vec4(75,	25,		50),	 vec4(100,	25,	60),
+		vec4(0,	0,		90),	vec4(25,	0,		30),	vec4(50, 0,		0),		vec4(75,	0,		35),	 vec4(100,	0,	100)
+	};	// Hill
 
 
 
@@ -458,21 +470,6 @@ public:
 	std::vector<float> ts;		// time (knot) values
 	std::vector<vec4>  cps;		// control points
 
-	//ITS Lagrange interpolation by TIME
-	//in : time,  out : time based its
-	float ITS_L(float time) {
-		float rr = 0;
-		for (int i = 0; i < cps.size(); i++) rr += its[i] * ITS_l_base(i, time);
-		return rr;
-	}
-	//in : time,  out : time based its weight
-	float ITS_l_base(int i, float t) {
-		float Li = 1.0f;
-		for (int j = 0; j < cps.size(); j++)
-			if (j != i) Li *= (t - its[j]) / (its[i] - its[j]);
-		return Li;
-	}
-
 	//CPS Lagrange interpolation by UNIFORM INCREMENT (its)
 	//in : its value,  out : cps
 	vec4 CPS_L(float t) {
@@ -489,13 +486,13 @@ public:
 
 	//CPS Lagrange curve derivative by UNIFORM INCREMENT (its)
 	//in : time,  out : direction vector
-	vec4 CPS_D(float t) {
+	vec4 CPS_dL(float t) {
 		vec4 rr(0, 0, 0);
-		for (int i = 0; i < cps.size(); i++) rr += cps[i] * CPS_base_D(i, t);
+		for (int i = 0; i < cps.size(); i++) rr += cps[i] * CPS_dl_base(i, t);
 		return rr;
 	}
 
-	float CPS_base_D(int i, float t) {
+	float CPS_dl_base(int i, float t) {
 		float res = 0;
 		for (int j = 0; j < cps.size(); j++)
 			if (j != i) res += 1 / (t - ts[j]);
@@ -550,13 +547,13 @@ public:
 		cps.push_back(wVec);			//push control point back
 		ts.push_back(sec);				//push time knot value back
 
+		//Calculate new length, number of vertices
 		length = 0;
 		nVertices = 0;
-		vec4 itVec;
-		
-		float it = (ts.back() - ts.front()) / 1000;
+		vec4 itVec; //To iterate through the curve
+		float it = (ts.back() - ts.front()) / 1000;  //For iteration
+		vec4 prevItVec = CPS_L(ts.front());  //To calculate the length differentially
 
-		vec4 prevItVec = CPS_L(ts.front());
 		for (float i = ts.front(); i < ts.back(); i += it) {
 			itVec = CPS_L(i);
 			length += (itVec - prevItVec).length();
@@ -565,23 +562,10 @@ public:
 			// fill interleaved data
 			vertexData[5 * nVertices] = itVec.v[0];
 			vertexData[5 * nVertices + 1] = itVec.v[1];
-
-#ifdef DEBUG 
-			if (i <= ts.front()+0.05 || i+0.05 >= ts.back()) {
-				vertexData[5 * nVertices + 2] = 1; // red
-				vertexData[5 * nVertices + 3] = 0; // green
-				vertexData[5 * nVertices + 4] = 0; // blue
-			}
-			else {
-				vertexData[5 * nVertices + 2] = 1; // red
-				vertexData[5 * nVertices + 3] = 1; // green
-				vertexData[5 * nVertices + 4] = 1; // blue
-			}
-#else
 			vertexData[5 * nVertices + 2] = 1; // red
 			vertexData[5 * nVertices + 3] = 1; // green
 			vertexData[5 * nVertices + 4] = 1; // blue
-#endif
+
 			nVertices++;
 		}
 
@@ -682,7 +666,7 @@ public:
 	}
 
 	void Animate(float tilt) {
-		sy = tan(tilt);
+		sy = atan(tilt);
 		sx = 1;
 	}
 
@@ -729,11 +713,13 @@ public:
 	}
 
 	void Start(float startTime) {
-		route.lock();
-		active = true;
-		time = route.ts[0];
-		tDiff = startTime - time;
-		Animate(startTime);
+		if (route.cps.size() > 1) {
+			route.lock();
+			active = true;
+			time = route.ts[0];
+			tDiff = startTime - time;
+			Animate(startTime);
+		}
 	}
 
 	void Create() {
@@ -771,20 +757,25 @@ public:
 			0, NULL);				// tightly packed
 	}
 
-	void Animate(float curT) {
+	void Animate(float curT) { 
 		if (active) {
 			time = curT - tDiff;
 			vec4 pos = route.CPS_L(time);
 			vec4 sPos = bezierSurface.wBS(pos.v[0], pos.v[1]);
-			vec4 dirV = route.CPS_D(time);
-			vec4 uH = bezierSurface.wdBSu(pos.v[0], pos.v[1]);
+			vec4 dirV = route.CPS_dL(time);
+			
 			vec4 vH = bezierSurface.wdBSv(pos.v[0], pos.v[1]);
+			vec4 uH = bezierSurface.wdBSu(pos.v[0], pos.v[1]);
 
-			vec4 dV = vec4(vH.v[0], uH.v[1], (uH.v[2] + vH.v[2]) / 2);
+			//Scale the cyclist and triangle by tilt
+			
+			float tilt1 = vH.v[2] / vH.v[0] * dirV.v[0]/dirV.length();	//Xi
+			float tilt2 = uH.v[2] / uH.v[1] * dirV.v[1]/dirV.length();	//Xy
 
-			float tilt = acos(dirV.dot(dV) / (dirV.length() * dV.length()));
-			tiltTriangle.Animate(tilt);
+			tiltTriangle.Animate(tilt1 + tilt2);
+			sy = abs(atan(1/(tilt1+tilt2)))/M_PI_2;
 
+			//Move cyclist
 			wTx = pos.v[0];
 			wTy = pos.v[1];
 
@@ -801,8 +792,6 @@ public:
 				r21 *= -1;
 			}
 
-			//Scale the cyclist by tilt
-			sy = abs(cos(tilt));
 
 
 #ifdef DEBUG
@@ -817,9 +806,9 @@ public:
 			printf("vH:\t\t%4.1f\t%4.1f\t%4.1f\n", vH.v[0], vH.v[1], vH.v[2]);
 			printf("dotuH:\t%4.3f\n", dirV.dot(uH));
 			printf("dotvH:\t%4.3f\n", dirV.dot(vH));
-			printf("ANGLE?u:\t%4.3f\n", acos(dirV.dot(uH) / (dirV.length() * uH.length())) / 3.14 * 180);
-			printf("ANGLE?v:\t%4.3f\n", acos(dirV.dot(vH) / (dirV.length() * vH.length())) / 3.14 * 180);
-			printf("TILT:\t%4.3f°\n", tilt / 3.14 * 180);
+
+			printf("TILT1:\t%4.3f°\n", tilt1);
+			printf("TILT2:\t%4.3f°\n", tilt2);
 
 			printf("-------------------\n");
 			printf("ts size:\t%d\n", route.ts.size());
