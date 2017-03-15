@@ -252,7 +252,7 @@ unsigned int shaderProgram;
 ////////////////////////////////////////////////
 // Models
 ////////////////////////////////////////////////
-#define DEBUG
+//#define DEBUG
 
 class BezierSurface {
 	GLuint vao, vbo;		// vertex array object, vertex buffer object
@@ -261,13 +261,33 @@ class BezierSurface {
 
 	//Control points gird size
 	int cpsSize = 5;
-	vec4 const cps[5][5] = {
-		vec4(0,	100,	0),		vec4(25,	100,	0),		vec4(50, 100,	0),		vec4(75,	100,	0),		 vec4(100,	100,0),
-		vec4(0,	75,		0),		vec4(25,	75,		60),	vec4(50, 75,	70),	vec4(75,	75,		40),	 vec4(100,	75,	10),
-		vec4(0,	50,		30),	vec4(25,	50,		200),	vec4(50, 50,	200),	vec4(75,	50,		40),	 vec4(100,	50,	60),
-		vec4(0,	25,		30),	vec4(25,	25,		70),	vec4(50, 25,	40),	vec4(75,	25,		50),	 vec4(100,	25,	60),
-		vec4(0,	0,		60),	vec4(25,	0,		40),	vec4(50, 0,		0),		vec4(75,	0,		30),	 vec4(100,	0,	100),
-	};	// vertex data on the CPU
+	vec4 const cps[5][5] = 
+		{
+			vec4(0,	100,	0),		vec4(25,	100,	0),		vec4(50, 100,	0),		vec4(75,	100,	0),		 vec4(100,	100,0),
+			vec4(0,	75,		0),		vec4(25,	75,		60),	vec4(50, 75,	70),	vec4(75,	75,		40),	 vec4(100,	75,	10),
+			vec4(0,	50,		30),	vec4(25,	50,		200),	vec4(50, 50,	200),	vec4(75,	50,		40),	 vec4(100,	50,	60),
+			vec4(0,	25,		30),	vec4(25,	25,		70),	vec4(50, 25,	40),	vec4(75,	25,		50),	 vec4(100,	25,	60),
+			vec4(0,	0,		60),	vec4(25,	0,		40),	vec4(50, 0,		0),		vec4(75,	0,		30),	 vec4(100,	0,	100)
+		};	// vertex data on the CPU
+		//{
+		//	vec4(0,	100,	0),		vec4(25,	100,	25),		vec4(50, 100,	50),		vec4(75,	100,	75),	 vec4(100,	100,100),
+		//	vec4(0,	75,		0),		vec4(25,	75,		25),		vec4(50, 75,	50),		vec4(75,	75,		75),	 vec4(100,	75,	100),
+		//	vec4(0,	50,		0),		vec4(25,	50,		25),		vec4(50, 50,	50),		vec4(75,	50,		75),	 vec4(100,	50,	100),
+		//	vec4(0,	25,		0),		vec4(25,	25,		25),		vec4(50, 25,	50),		vec4(75,	25,		75),	 vec4(100,	25,	100),
+		//	vec4(0,	0,		0),		vec4(25,	0,		25),		vec4(50, 0,		50),		vec4(75,	0,		75),	 vec4(100,	0,	100)
+		//};	// vertex data on the CPU
+	//{
+	//	vec4(0,	100,	0),		vec4(25,	100,	 0),		vec4(50, 100,	25),		vec4(75,	100,	25),	 vec4(100,	100, 50),
+	//	vec4(0,	75,		0),		vec4(25,	75,		 25),		vec4(50, 75,	25),		vec4(75,	75,		50),	 vec4(100,	75, 75),
+	//	vec4(0,	50,		25),	vec4(25,	50,		25),		vec4(50, 50,	50),		vec4(75,	50,		75),	 vec4(100,	50, 75),
+	//	vec4(0,	25,		25),	vec4(25,	25,		50),		vec4(50, 25,	75),		vec4(75,	25,		75),	 vec4(100,	25,	100),
+	//	vec4(0,	0,		50),	vec4(25,	0,		75),		vec4(50, 0,		75),		vec4(75,	0,		100),	 vec4(100,	0,	100)
+	//};	// vertex data on the CPU
+
+
+
+
+
 
 	vec4 zColorInterp(const vec4& vec) {
 		float z = vec.v[2];
@@ -302,25 +322,39 @@ class BezierSurface {
 		return choose * pow(t, i) * pow(1 - t, n - i);
 	}
 
-	vec4 dBS(float u, float v) {
+	vec4 dBSv(float u, float v) {
 		u = u / 100;
 		v = v / 100;
 		vec4 rr(0, 0, 0);
-		for (int n = 0; n < cpsSize - 1; n++) 
+		for (int n = 0; n < cpsSize; n++) 
 			for (int m = 0; m < cpsSize - 1; m++)
-				rr += (cps[n+1][m + 1] - cps[n][m]) * dB(n, u) * dB(m, v);
+				rr += (cps[n][m + 1] - cps[n][m]) * B(n, u) * dB(m, v);
 
 		return rr;
 	}
+
+	vec4 dBSu(float u, float v) {
+		u = u / 100;
+		v = v / 100;
+		vec4 rr(0, 0, 0);
+		for (int n = 0; n < cpsSize-1; n++)
+			for (int m = 0; m < cpsSize; m++)
+				rr += (cps[n+1][m] - cps[n][m]) * dB(n, u) * B(m, v);
+
+		return rr;
+	}
+
 
 public:
 	vec4 wBS(float x, float y) {
 		return BS(100-y,x);
 	}
-	vec4 wdBS(float x, float y) {
-		return dBS(100 - y, x);
+	vec4 wdBSv(float x, float y) {
+		return dBSv(100 - y, x);
 	}
-
+	vec4 wdBSu(float x, float y) {
+		return dBSu(100 - y, x);
+	}
 	void Create() {
 		glGenVertexArrays(1, &vao);
 		glBindVertexArray(vao);
@@ -410,11 +444,12 @@ BezierSurface bezierSurface;
 
 class LagrangeRoute {
 	GLuint vao, vbo;			// vertex array object, vertex buffer object
-	float  vertexData[150000];	// interleaved data of coordinates and colors
+	float  vertexData[15000];	// interleaved data of coordinates and colors
 	int    nVertices;			// number of vertices
 
 	bool rLock;					//Lock when cyclist goes through
 
+	float length;
 ///////////////////////////////////////
 // Lagrange curves
 //////////////////
@@ -431,10 +466,10 @@ public:
 		return rr;
 	}
 	//in : time,  out : time based its weight
-	float ITS_l_base(int i, float time) {
+	float ITS_l_base(int i, float t) {
 		float Li = 1.0f;
 		for (int j = 0; j < cps.size(); j++)
-			if (j != i) Li *= (time - ts[j]) / (ts[i] - ts[j]);
+			if (j != i) Li *= (t - its[j]) / (its[i] - its[j]);
 		return Li;
 	}
 
@@ -448,7 +483,7 @@ public:
 	float CPS_l_base(int i, float t) {
 		float Li = 1.0f;
 		for (int j = 0; j < cps.size(); j++)
-			if (j != i) Li *= (t - its[j]) / (its[i] - its[j]);
+			if (j != i) Li *= (t - ts[j]) / (ts[i] - ts[j]);
 		return Li;
 	}
 
@@ -463,7 +498,7 @@ public:
 	float CPS_base_D(int i, float t) {
 		float res = 0;
 		for (int j = 0; j < cps.size(); j++)
-			if (j != i) res += 1 / (t - its[j]);
+			if (j != i) res += 1 / (t - ts[j]);
 		res *= CPS_l_base(i, t);
 		return res;
 	}
@@ -472,8 +507,12 @@ public:
 ///////////////////////////////////////
 public:
 
-	void Create() {
+	LagrangeRoute() {
 		rLock = false;
+		length = 0;
+	}
+
+	void Create() {
 		glGenVertexArrays(1, &vao);
 		glBindVertexArray(vao);
 
@@ -511,18 +550,24 @@ public:
 		cps.push_back(wVec);			//push control point back
 		ts.push_back(sec);				//push time knot value back
 
+		length = 0;
 		nVertices = 0;
-		vec4 wItVec;
+		vec4 itVec;
+		
+		float it = (ts.back() - ts.front()) / 1000;
 
-		for (float i = its.front(); i <= its.back(); i += 0.01) {
-			wItVec = CPS_L(i);
+		vec4 prevItVec = CPS_L(ts.front());
+		for (float i = ts.front(); i < ts.back(); i += it) {
+			itVec = CPS_L(i);
+			length += (itVec - prevItVec).length();
+			prevItVec = itVec;
 
 			// fill interleaved data
-			vertexData[5 * nVertices] = wItVec.v[0];
-			vertexData[5 * nVertices + 1] = wItVec.v[1];
+			vertexData[5 * nVertices] = itVec.v[0];
+			vertexData[5 * nVertices + 1] = itVec.v[1];
 
 #ifdef DEBUG 
-			if (i <= its.front()+0.05 || i+0.05 >= its.back()) {
+			if (i <= ts.front()+0.05 || i+0.05 >= ts.back()) {
 				vertexData[5 * nVertices + 2] = 1; // red
 				vertexData[5 * nVertices + 3] = 0; // green
 				vertexData[5 * nVertices + 4] = 0; // blue
@@ -540,6 +585,8 @@ public:
 			nVertices++;
 		}
 
+		//Length
+		printf("length:\t%4.3f m\n", length*10);
 #ifdef DEBUG
 		printf("cX:\t%4.3f\tcY:\t%4.3f\n", cX, cY);
 		printf("wVec:\t\t%4.1f\t%4.1f\t%4.1f\n", wVec.v[0], wVec.v[1], wVec.v[2]);
@@ -587,6 +634,82 @@ public:
 };
 
 LagrangeRoute route;
+
+class TiltTriangle {
+	unsigned int vao;	// vertex array object id
+	float sx, sy;		// scaling
+	float wTx, wTy;		// translation
+public:
+	TiltTriangle() {
+		Animate(0);
+		wTx = 0;
+		wTy = 50;
+	}
+
+	void Create() {
+		glGenVertexArrays(1, &vao);	// create 1 vertex array object
+		glBindVertexArray(vao);		// make it active
+		unsigned int vbo[2];		// vertex buffer objects
+		glGenBuffers(2, &vbo[0]);	// Generate 2 vertex buffer objects
+									// Done with the makin part, baby
+
+									// vertex coordinates: vbo[0] -> Attrib Array 0 -> vertexPosition of the vertex shader
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]); // make it active, it is an array
+		static float vertexCoords[] = { 90,0, 100, 0, 100, 10 };	// vertex data on the CPU
+		glBufferData(GL_ARRAY_BUFFER,   // copy to the GPU
+			sizeof(vertexCoords),		// number of the vbo in bytes
+			vertexCoords,				// address of the data array on the CPU
+			GL_STATIC_DRAW);			// copy to that part of the memory which is not modified 
+										// Map Attribute Array 0 to the current bound vertex buffer (vbo[0])
+		glEnableVertexAttribArray(0);
+		// Data organization of Attribute Array 0 
+		glVertexAttribPointer(0,	// Attribute Array 0
+			2, GL_FLOAT,			// components/attribute, component type
+			GL_FALSE,				// not in fixed point format, do not normalized
+			0, NULL);				// stride and offset: it is tightly packed
+
+									// vertex colors: vbo[1] -> Attrib Array 1 -> vertexColor of the vertex shader
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);	// make it active, it is an array
+		static float vertexColors[] = { 1, 1, 1,  1, 1, 1,  1, 1, 1 };						// vertex data on the CPU
+		glBufferData(GL_ARRAY_BUFFER, sizeof(vertexColors), vertexColors, GL_STATIC_DRAW);	// copy to the GPU
+																							// Map Attribute Array 1 to the current bound vertex buffer (vbo[1])
+		glEnableVertexAttribArray(1);			// Vertex position
+												// Data organization of Attribute Array 1
+		glVertexAttribPointer(1,	// Attribute Array 1,
+			3, GL_FLOAT,			// components/attribute, component type,
+			GL_FALSE,				// normalize?, 
+			0, NULL);				// tightly packed
+	}
+
+	void Animate(float tilt) {
+		sy = tan(tilt);
+		sx = 1;
+	}
+
+	void Draw() {
+		mat4 Mscale(sx, 0, 0, 0,
+					0, sy, 0, 0,
+					0, 0, 0, 0,
+					0, 0, 0, 1); // model matrix
+
+		mat4 Mtranslate(1, 0, 0, 0,
+			0, 1, 0, 0,
+			0, 0, 0, 0,
+			wTx, wTy, 0, 1); // model matrix
+
+		mat4 MVPTransform = Mscale * Mtranslate *  camera.V() * camera.P();
+
+		// set GPU uniform matrix variable MVP with the content of CPU variable MVPTransform
+		int location = glGetUniformLocation(shaderProgram, "MVP");
+		if (location >= 0) glUniformMatrix4fv(location, 1, GL_TRUE, MVPTransform); // set uniform variable MVP to the MVPTransform
+		else printf("uniform MVP cannot be set\n");
+
+		glBindVertexArray(vao);	// make the vao and its vbos active playing the role of the data source
+		glDrawArrays(GL_TRIANGLES, 0, 3);	// draw a single triangle with vertices defined in vao
+	}
+};
+
+TiltTriangle tiltTriangle;
 
 class Cyclist {
 	unsigned int vao;	// vertex array object id
@@ -651,32 +774,52 @@ public:
 	void Animate(float curT) {
 		if (active) {
 			time = curT - tDiff;
-			float its = route.ITS_L(time);
-			vec4 pos = route.CPS_L(its);
+			vec4 pos = route.CPS_L(time);
 			vec4 sPos = bezierSurface.wBS(pos.v[0], pos.v[1]);
-			vec4 dirV = route.CPS_D(its);
-			vec4 grad = bezierSurface.wdBS(pos.v[0], pos.v[1]);
+			vec4 dirV = route.CPS_D(time);
+			vec4 uH = bezierSurface.wdBSu(pos.v[0], pos.v[1]);
+			vec4 vH = bezierSurface.wdBSv(pos.v[0], pos.v[1]);
+
+			vec4 dV = vec4(vH.v[0], uH.v[1], (uH.v[2] + vH.v[2]) / 2);
+
+			float tilt = acos(dirV.dot(dV) / (dirV.length() * dV.length()));
+			tiltTriangle.Animate(tilt);
 
 			wTx = pos.v[0];
 			wTy = pos.v[1];
 
-			//float theta = acos(dirV.dot(vec4(0, 1, 0)) / (dirV.length()));
+			//Rotate the cyclist
+			float theta = acos(dirV.dot(vec4(0, 1, 0)) / (dirV.length()));
 
-			//r11 = cos(theta);
-			//r12 = -sin(theta);
-			//r21 = sin(theta);
-			//r22 = cos(theta);
+			r11 = cos(theta);
+			r12 = -sin(theta);
+			r21 = sin(theta);
+			r22 = cos(theta);
+
+			if (dirV.v[0] < 0) { //to make it good on the other side...
+				r11 *= -1;
+				r21 *= -1;
+			}
+
+			//Scale the cyclist by tilt
+			sy = abs(cos(tilt));
+
 
 #ifdef DEBUG
 			system("cls");
 			printf("sTime:\t%4.3f\n", tDiff);
 			printf("curT:\t%4.3f\n", curT);
 			printf("time:\t%4.3f\n", time);
-			printf("ITS:\t%4.3f\n", its);
 			printf("xypos:\t\t%4.1f\t%4.1f\t%4.1f\n", pos.v[0], pos.v[1], pos.v[2]);
 			printf("3DPos:\t\t%4.1f\t%4.1f\t%4.1f\n", sPos.v[0], sPos.v[1], sPos.v[2]);
 			printf("dirVec:\t\t%4.1f\t%4.1f\t%4.1f\n", dirV.v[0], dirV.v[1], dirV.v[2]);
-			printf("grad:\t\t%4.1f\t%4.1f\t%4.1f\n", grad.v[0], grad.v[1], grad.v[2]);
+			printf("uH:\t\t%4.1f\t%4.1f\t%4.1f\n", uH.v[0], uH.v[1], uH.v[2]);
+			printf("vH:\t\t%4.1f\t%4.1f\t%4.1f\n", vH.v[0], vH.v[1], vH.v[2]);
+			printf("dotuH:\t%4.3f\n", dirV.dot(uH));
+			printf("dotvH:\t%4.3f\n", dirV.dot(vH));
+			printf("ANGLE?u:\t%4.3f\n", acos(dirV.dot(uH) / (dirV.length() * uH.length())) / 3.14 * 180);
+			printf("ANGLE?v:\t%4.3f\n", acos(dirV.dot(vH) / (dirV.length() * vH.length())) / 3.14 * 180);
+			printf("TILT:\t%4.3f°\n", tilt / 3.14 * 180);
 
 			printf("-------------------\n");
 			printf("ts size:\t%d\n", route.ts.size());
@@ -726,7 +869,7 @@ public:
 						0, 0, 0, 0,
 						wTx, wTy, 0, 1); // model matrix
 
-		mat4 MVPTransform = Mrotate * Mscale * Mtranslate * camera.V() * camera.P();
+		mat4 MVPTransform =  Mscale * Mrotate * Mtranslate * camera.V() * camera.P();
 
 		// set GPU uniform matrix variable MVP with the content of CPU variable MVPTransform
 		int location = glGetUniformLocation(shaderProgram, "MVP");
@@ -752,6 +895,7 @@ void onInitialization() {
 	route.Create();
 	bezierSurface.Create();
 	cyclist.Create();
+	tiltTriangle.Create();
 
 	// Create vertex shader from string
 	unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
@@ -805,6 +949,7 @@ void onDisplay() {
 	bezierSurface.Draw();
 	route.Draw();
 	cyclist.Draw();
+	tiltTriangle.Draw();
 
 	glutSwapBuffers();									// exchange the two buffers
 }
