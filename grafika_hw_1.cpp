@@ -178,7 +178,9 @@ struct vec4 {
 		vec4 res(v[0] * a, v[1] * a, v[2] * a);
 		return res;
 	}
-	vec4 operator+(const vec4& right) const  {
+
+	vec4 operator+(const vec4& right) const {
+
 		return vec4(v[0] + right.v[0], v[1] + right.v[1], v[2] + right.v[2], v[3] + right.v[3]);
 	}
 	vec4 operator-(const vec4& right) const {
@@ -212,13 +214,15 @@ public:
 					0, 1, 0, 0,
 					0, 0, 1, 0,
 					-wCx, -wCy, 0, 1);
+
 	}
 
 	mat4 P() { // projection matrix: scales it to be a square of edge length 2
 		return mat4(2 / wWx, 0, 0, 0,
-					0, 2 / wWy, 0, 0,
-					0, 0, 1, 0,
-					0, 0, 0, 1);
+			0, 2 / wWy, 0, 0,
+			0, 0, 1, 0,
+			0, 0, 0, 1);
+
 	}
 
 	mat4 Vinv() { // inverse view matrix
@@ -238,6 +242,7 @@ public:
 	void Animate(float t) {
 		wCx = WSize/2;
 		wCy = WSize/2;
+
 		wWx = WSize;
 		wWy = WSize;
 	}
@@ -249,99 +254,66 @@ Camera camera;
 // handle of the shader program
 unsigned int shaderProgram;
 
-
 ////////////////////////////////////////////////
 // Models
 ////////////////////////////////////////////////
-
-class Triangle {
-	unsigned int vao;	// vertex array object id
-	float sx, sy;		// scaling
-	float wTx, wTy;		// translation
-public:
-	Triangle() {
-		Animate(0);
-	}
-
-	void Create() {
-		glGenVertexArrays(1, &vao);	// create 1 vertex array object
-		glBindVertexArray(vao);		// make it active
-		unsigned int vbo[2];		// vertex buffer objects
-		glGenBuffers(2, &vbo[0]);	// Generate 2 vertex buffer objects
-									// Done with the makin part, baby
-
-		// vertex coordinates: vbo[0] -> Attrib Array 0 -> vertexPosition of the vertex shader
-		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]); // make it active, it is an array
-		static float vertexCoords[] = { 0,0, 0, 100, 100, 0 };	// vertex data on the CPU
-		glBufferData(GL_ARRAY_BUFFER,   // copy to the GPU
-			sizeof(vertexCoords),		// number of the vbo in bytes
-			vertexCoords,				// address of the data array on the CPU
-			GL_STATIC_DRAW);			// copy to that part of the memory which is not modified 
-		// Map Attribute Array 0 to the current bound vertex buffer (vbo[0])
-		glEnableVertexAttribArray(0);
-		// Data organization of Attribute Array 0 
-		glVertexAttribPointer(0,	// Attribute Array 0
-			2, GL_FLOAT,			// components/attribute, component type
-			GL_FALSE,				// not in fixed point format, do not normalized
-			0, NULL);				// stride and offset: it is tightly packed
-
-		// vertex colors: vbo[1] -> Attrib Array 1 -> vertexColor of the vertex shader
-		glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);	// make it active, it is an array
-		static float vertexColors[] = { 1, 0, 0,  0, 1, 0,  0, 0, 1 };						// vertex data on the CPU
-		glBufferData(GL_ARRAY_BUFFER, sizeof(vertexColors), vertexColors, GL_STATIC_DRAW);	// copy to the GPU
-		// Map Attribute Array 1 to the current bound vertex buffer (vbo[1])
-		glEnableVertexAttribArray(1);			// Vertex position
-		// Data organization of Attribute Array 1
-		glVertexAttribPointer(1,	// Attribute Array 1,
-			3, GL_FLOAT,			// components/attribute, component type,
-			GL_FALSE,				// normalize?, 
-			0, NULL);				// tightly packed
-	}
-
-	void Animate(float t) {
-		sx = 1; // sinf(t);
-		sy = 1; // cosf(t);
-		wTx = 0; // 4 * cosf(t / 2);
-		wTy = 0; // 4 * sinf(t / 2);
-	}
-
-	void Draw() {
-		mat4 Mscale(sx, 0, 0, 0,
-			0, sy, 0, 0,
-			0, 0, 0, 0,
-			0, 0, 0, 1); // model matrix
-
-		mat4 Mtranslate(1, 0, 0, 0,
-			0, 1, 0, 0,
-			0, 0, 0, 0,
-			wTx, wTy, 0, 1); // model matrix
-
-		mat4 MVPTransform = Mscale * Mtranslate * camera.V() * camera.P();
-
-		// set GPU uniform matrix variable MVP with the content of CPU variable MVPTransform
-		int location = glGetUniformLocation(shaderProgram, "MVP");
-		if (location >= 0) glUniformMatrix4fv(location, 1, GL_TRUE, MVPTransform); // set uniform variable MVP to the MVPTransform
-		else printf("uniform MVP cannot be set\n");
-
-		glBindVertexArray(vao);	// make the vao and its vbos active playing the role of the data source
-		glDrawArrays(GL_TRIANGLES, 0, 3);	// draw a single triangle with vertices defined in vao
-	}
-};
+#define DEBUG
 
 class BezierSurface {
 	GLuint vao, vbo;		// vertex array object, vertex buffer object
-	float vertexData[5000];	// data of coordinates and colors
+	float wVertexData[5000];	// data of coordinates and colors
 	int nVertices;
 
 	//Control points gird size
 	int cpsSize = 5;
-	vec4 const cps[5][5] = {
-		vec4(0,	100,	0),		vec4(25,	100,	60),	vec4(50, 100,	25),	vec4(75,	100,	10),	 vec4(100,	100,0),
-		vec4(0,	75,		30),	vec4(25,	75,		100),	vec4(50, 75,	90),	vec4(75,	75,		40),	 vec4(100,	75,	10),
-		vec4(0,	50,		40),	vec4(25,	50,		100),	vec4(50, 50,	100),	vec4(75,	50,		90),	 vec4(100,	50,	60),
-		vec4(0,	25,		30),	vec4(25,	25,		40),	vec4(50, 25,	40),	vec4(75,	25,		50),	 vec4(100,	25,	60),
-		vec4(0,	0,		10),	vec4(25,	0,		40),	vec4(50, 0,		25),	vec4(75,	0,		30),	 vec4(100,	0,	100),
-		};	// vertex data on the CPU
+
+	//vec4 const cps[5][5] = 
+	//	{
+	//		vec4(0,	100,	0),		vec4(25,	100,	25),		vec4(50, 100,	50),		vec4(75,	100,	75),	 vec4(100,	100,100),
+	//		vec4(0,	75,		0),		vec4(25,	75,		25),		vec4(50, 75,	50),		vec4(75,	75,		75),	 vec4(100,	75,	100),
+	//		vec4(0,	50,		0),		vec4(25,	50,		25),		vec4(50, 50,	50),		vec4(75,	50,		75),	 vec4(100,	50,	100),
+	//		vec4(0,	25,		0),		vec4(25,	25,		25),		vec4(50, 25,	50),		vec4(75,	25,		75),	 vec4(100,	25,	100),
+	//		vec4(0,	0,		0),		vec4(25,	0,		25),		vec4(50, 0,		50),		vec4(75,	0,		75),	 vec4(100,	0,	100)
+	//	};	// Left Right
+
+	//vec4 const cps[5][5] =
+	//	{
+	//		vec4(0,	100,		 0),	vec4(25,	100,		 0),		vec4(50, 100,		 0),		vec4(75,	100,		 0),	 vec4(100,	100,	 0),
+	//		vec4(0,	75,			25),	vec4(25,	75,			25),		vec4(50, 75,		25),		vec4(75,	75,			25),	 vec4(100,	75,		25),
+	//		vec4(0,	50,			50),	vec4(25,	50,			50),		vec4(50, 50,		50),		vec4(75,	50,			50),	 vec4(100,	50,		50),
+	//		vec4(0,	25,			75),	vec4(25,	25,			75),		vec4(50, 25,		75),		vec4(75,	25,			75),	 vec4(100,	25,		75),
+	//		vec4(0,	0,		   100),	vec4(25,	0,		   100),		vec4(50, 0,		   100),		vec4(75,	0,		   100),	 vec4(100,	0,	   100)
+	//	};	// Top-down
+
+	//vec4 const cps[5][5] =
+	//{
+	//	vec4(0,	100,	0),		vec4(25,	100,	 0),		vec4(50, 100,	25),		vec4(75,	100,	25),	 vec4(100,	100, 50),
+	//	vec4(0,	75,		0),		vec4(25,	75,		 25),		vec4(50, 75,	25),		vec4(75,	75,		50),	 vec4(100,	75, 75),
+	//	vec4(0,	50,		25),	vec4(25,	50,		25),		vec4(50, 50,	50),		vec4(75,	50,		75),	 vec4(100,	50, 75),
+	//	vec4(0,	25,		25),	vec4(25,	25,		50),		vec4(50, 25,	75),		vec4(75,	25,		75),	 vec4(100,	25,	100),
+	//	vec4(0,	0,		50),	vec4(25,	0,		75),		vec4(50, 0,		75),		vec4(75,	0,		100),	 vec4(100,	0,	100)
+	//};	// BR->TL
+
+	vec4 const cps[5][5] =
+	{
+		vec4(0,	100,	0),		vec4(25,	100,	0),		vec4(50, 100,	0),		vec4(75,	100,	0),		 vec4(100,	100,0),
+		vec4(0,	75,		0),		vec4(25,	75,		60),	vec4(50, 75,	70),	vec4(75,	75,		40),	 vec4(100,	75,	60),
+		vec4(0,	50,		0),		vec4(25,	50,		200),	vec4(50, 50,	200),	vec4(75,	50,		40),	 vec4(100,	50,	0),
+		vec4(0,	25,		30),	vec4(25,	25,		70),	vec4(50, 25,	40),	vec4(75,	25,		50),	 vec4(100,	25,	60),
+		vec4(0,	0,		90),	vec4(25,	0,		30),	vec4(50, 0,		0),		vec4(75,	0,		35),	 vec4(100,	0,	100)
+	};	// Hill
+
+
+
+
+	vec4 zColorInterp(const vec4& vec) {
+		float z = vec.v[2];
+
+		float blue = (z / 100); //
+		float green = 1 - blue; //
+
+		return vec4(0, green, blue, 0);
+	}
 
 	float B(int i, float t) {
 		int n = cpsSize - 1; // n deg polynomial = n+1 pts!
@@ -350,25 +322,55 @@ class BezierSurface {
 		return choose * pow(t, i) * pow(1 - t, n - i);
 	}
 
-	vec4 paramBS(float u, float v) {
-		vec4 rr(0,0);
+	vec4 BS(float u, float v) {
+		u = u / 100;
+		v = v / 100;
+		vec4 rr(0, 0, 0);
 		for (int n = 0; n < cpsSize; n++)
 			for (int m = 0; m < cpsSize; m++)
-				rr += cps[n][m]* B(n, u)*B(m, v);
+				rr += cps[n][m] * B(n, u) * B(m, v);
 		return rr;
 	}
 
-	vec4 zColorInterp(const vec4& vec) {
-		float z = vec.v[2];
-		
-		float blue = (z/100.0); //
-		float green = 1.0 - blue; //
+	float dB(int i, float t) {
+		int n = cpsSize - 2; // n deg polynomial = n+1 pts, -1 for derivative equation
+		float choose = 1;
+		for (int j = 1; j <= i; j++) choose *= (float)(n - j + 1) / j;
+		return choose * pow(t, i) * pow(1 - t, n - i);
+	}
 
-		return vec4(0, green, blue,0);
+	vec4 dBSv(float u, float v) {
+		u = u / 100;
+		v = v / 100;
+		vec4 rr(0, 0, 0);
+		for (int n = 0; n < cpsSize; n++) 
+			for (int m = 0; m < cpsSize - 1; m++)
+				rr += (cps[n][m + 1] - cps[n][m]) * B(n, u) * dB(m, v);
+
+		return rr;
+	}
+
+	vec4 dBSu(float u, float v) {
+		u = u / 100;
+		v = v / 100;
+		vec4 rr(0, 0, 0);
+		for (int n = 0; n < cpsSize-1; n++)
+			for (int m = 0; m < cpsSize; m++)
+				rr += (cps[n+1][m] - cps[n][m]) * dB(n, u) * B(m, v);
+
+		return rr;
 	}
 
 public:
-
+	vec4 wBS(float x, float y) {
+		return BS(100-y,x);
+	}
+	vec4 wdBSv(float x, float y) {
+		return dBSv(100 - y, x);
+	}
+	vec4 wdBSu(float x, float y) {
+		return dBSu(100 - y, x);
+	}
 	void Create() {
 		glGenVertexArrays(1, &vao);
 		glBindVertexArray(vao);
@@ -379,67 +381,69 @@ public:
 		// Enable the vertex attribute arrays
 		glEnableVertexAttribArray(0);  // attribute array 0
 		glEnableVertexAttribArray(1);  // attribute array 1
-		
+
 		// Map attribute array 0 to the vertex data of the interleaved vbo
 		// attribute array, components/attribute, component type, normalize?, stride, offset
-		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), reinterpret_cast<void*>(0)); 
-		
+		glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), reinterpret_cast<void*>(0));
+
 		// Map attribute array 1 to the color data of the interleaved vbo
 		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), reinterpret_cast<void*>(2 * sizeof(float)));
 
 		nVertices = 0;
-		vec4 nextV;
+		vec4 wNextVec;
 		vec4 nextCol;
-		//World size is 100 and model resolution is 5:
+		
 		int u, v;
-		for (u = 0; u <= 100-5; u += 5) {
+		//World size is 100 and model resolution is 5:
+		for (u = 0; u <= 100 - 5; u += 5) {
 			for (v = 0; v <= 100; v += 5) {
-				nextV = paramBS((float)u/100, (float)v/100);
-				nextCol = zColorInterp(nextV);
+				wNextVec = BS(u, v);
+				nextCol = zColorInterp(wNextVec);
 				// triangle left bot (and right bot)
-				vertexData[5 * nVertices] = nextV.v[0];
-				vertexData[5 * nVertices + 1] = nextV.v[1];
-				vertexData[5 * nVertices + 2] = nextCol.v[0]; // red
-				vertexData[5 * nVertices + 3] = nextCol.v[1]; // green
-				vertexData[5 * nVertices + 4] = nextCol.v[2]; // blue
+				wVertexData[5 * nVertices] = wNextVec.v[0];
+				wVertexData[5 * nVertices + 1] = wNextVec.v[1];
+				wVertexData[5 * nVertices + 2] = nextCol.v[0]; // red
+				wVertexData[5 * nVertices + 3] = nextCol.v[1]; // green
+				wVertexData[5 * nVertices + 4] = nextCol.v[2]; // blue
 				nVertices++;
 
-				nextV = paramBS((float)(u+5)/100, (float)v/100);
-				nextCol = zColorInterp(nextV);
+				wNextVec = BS(u + 5, v);
+				nextCol = zColorInterp(wNextVec);
 				// triangle left top (and right top)
-				vertexData[5 * nVertices] = nextV.v[0];
-				vertexData[5 * nVertices + 1] = nextV.v[1];
-				vertexData[5 * nVertices + 2] = nextCol.v[0]; // red
-				vertexData[5 * nVertices + 3] = nextCol.v[1]; // green
-				vertexData[5 * nVertices + 4] = nextCol.v[2]; // blue
+				wVertexData[5 * nVertices] = wNextVec.v[0];
+				wVertexData[5 * nVertices + 1] = wNextVec.v[1];
+				wVertexData[5 * nVertices + 2] = nextCol.v[0]; // red
+				wVertexData[5 * nVertices + 3] = nextCol.v[1]; // green
+				wVertexData[5 * nVertices + 4] = nextCol.v[2]; // blue
 				nVertices++;
 			}
-			nextV = paramBS((float)(u + 5) / 100, (float)(v+5) / 100);
-			nextCol = zColorInterp(nextV);
+			wNextVec = BS(u + 5, v - 5);
+			nextCol = zColorInterp(wNextVec);
 			// first terminal
-			vertexData[5 * nVertices] = nextV.v[0];
-			vertexData[5 * nVertices + 1] = nextV.v[1];
-			vertexData[5 * nVertices + 2] = nextCol.v[0]; // red
-			vertexData[5 * nVertices + 3] = nextCol.v[1]; // green
-			vertexData[5 * nVertices + 4] = nextCol.v[2]; // blue
+			wVertexData[5 * nVertices] = wNextVec.v[0];
+			wVertexData[5 * nVertices + 1] = wNextVec.v[1];
+			wVertexData[5 * nVertices + 2] = nextCol.v[0]; // red
+			wVertexData[5 * nVertices + 3] = nextCol.v[1]; // green
+			wVertexData[5 * nVertices + 4] = nextCol.v[2]; // blue
 			nVertices++;
 
-			nextV = paramBS((float)(u+5)/100,0);
-			nextCol = zColorInterp(nextV);
+			wNextVec = BS(u + 5 , 0);
+			nextCol = zColorInterp(wNextVec);
 			// first starter)
-			vertexData[5 * nVertices] = nextV.v[0];
-			vertexData[5 * nVertices + 1] = nextV.v[1];
-			vertexData[5 * nVertices + 2] = nextCol.v[0]; // red
-			vertexData[5 * nVertices + 3] = nextCol.v[1]; // green
-			vertexData[5 * nVertices + 4] = nextCol.v[2]; // blue
+			wVertexData[5 * nVertices] = wNextVec.v[0];
+			wVertexData[5 * nVertices + 1] = wNextVec.v[1];
+			wVertexData[5 * nVertices + 2] = nextCol.v[0]; // red
+			wVertexData[5 * nVertices + 3] = nextCol.v[1]; // green
+			wVertexData[5 * nVertices + 4] = nextCol.v[2]; // blue
 			nVertices++;
 		}
-		
+
 		// copy data to the GPU
-		glBufferData(GL_ARRAY_BUFFER, nVertices * 5 * sizeof(float), vertexData, GL_STATIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, nVertices * 5 * sizeof(float), wVertexData, GL_STATIC_DRAW);
 	}
 
 	void Draw() {
+
 
 		mat4 VPTransform = camera.V() * camera.P();
 
@@ -453,15 +457,64 @@ public:
 	}
 };
 
+BezierSurface bezierSurface;
 
-class LineStrip {
-	GLuint vao, vbo;        // vertex array object, vertex buffer object
-	float  vertexData[100]; // interleaved data of coordinates and colors
-	int    nVertices;       // number of vertices
+class LagrangeRoute {
+	GLuint vao, vbo;			// vertex array object, vertex buffer object
+	float  vertexData[15000];	// interleaved data of coordinates and colors
+	int    nVertices;			// number of vertices
+
+	bool rLock;					//Lock when cyclist goes through
+
+	float length;
+///////////////////////////////////////
+// Lagrange curves
+//////////////////
+
 public:
-	LineStrip() {
-		nVertices = 0;
+	std::vector<float> its; 	// incremental (knot) values
+	std::vector<float> ts;		// time (knot) values
+	std::vector<vec4>  cps;		// control points
+
+	//CPS Lagrange interpolation by UNIFORM INCREMENT (its)
+	//in : its value,  out : cps
+	vec4 CPS_L(float t) {
+		vec4 rr(0, 0, 0);
+		for (int i = 0; i < cps.size(); i++) rr += cps[i] * CPS_l_base(i, t);
+		return rr;
 	}
+	float CPS_l_base(int i, float t) {
+		float Li = 1.0f;
+		for (int j = 0; j < cps.size(); j++)
+			if (j != i) Li *= (t - ts[j]) / (ts[i] - ts[j]);
+		return Li;
+	}
+
+	//CPS Lagrange curve derivative by UNIFORM INCREMENT (its)
+	//in : time,  out : direction vector
+	vec4 CPS_dL(float t) {
+		vec4 rr(0, 0, 0);
+		for (int i = 0; i < cps.size(); i++) rr += cps[i] * CPS_dl_base(i, t);
+		return rr;
+	}
+
+	float CPS_dl_base(int i, float t) {
+		float res = 0;
+		for (int j = 0; j < cps.size(); j++)
+			if (j != i) res += 1 / (t - ts[j]);
+		res *= CPS_l_base(i, t);
+		return res;
+	}
+//////////////////
+// Lagrange curves end
+///////////////////////////////////////
+public:
+
+	LagrangeRoute() {
+		rLock = false;
+		length = 0;
+	}
+
 	void Create() {
 		glGenVertexArrays(1, &vao);
 		glBindVertexArray(vao);
@@ -476,25 +529,90 @@ public:
 																										// Map attribute array 1 to the color data of the interleaved vbo
 		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), reinterpret_cast<void*>(2 * sizeof(float)));
 	}
-
-	void AddPoint(float cX, float cY) {
+	
+	void lock() {
+		rLock = true;
+	}
+	void unlock() {
+		rLock = false;
+	}
+	
+	void AddPoint(float cX, float cY, float sec) {
 		glBindBuffer(GL_ARRAY_BUFFER, vbo);
-		if (nVertices >= 20) return;
 
-		vec4 wVertex = vec4(cX, cY, 0, 1) * camera.Pinv() * camera.Vinv();
-		// fill interleaved data
-		vertexData[5 * nVertices] = wVertex.v[0];
-		vertexData[5 * nVertices + 1] = wVertex.v[1];
-		vertexData[5 * nVertices + 2] = 1; // red
-		vertexData[5 * nVertices + 3] = 1; // green
-		vertexData[5 * nVertices + 4] = 0; // blue
-		nVertices++;
+		if (cps.size() >= 15) return;
+		if (rLock == true) return;
+
+#ifdef DEBUG
+		system("cls");
+#endif
+
+		//Create the new control point from the click params
+		vec4 wVec = vec4(cX, cY, 0, 1) * camera.Pinv() * camera.Vinv();
+
+		its.push_back(cps.size());		//push incremental knot value back
+		cps.push_back(wVec);			//push control point back
+		ts.push_back(sec);				//push time knot value back
+
+		//Calculate new length, number of vertices
+		length = 0;
+		nVertices = 0;
+		vec4 itVec; //To iterate through the curve
+		float it = (ts.back() - ts.front()) / 1000;  //For iteration
+		vec4 prevItVec = CPS_L(ts.front());  //To calculate the length differentially
+
+		for (float i = ts.front(); i < ts.back(); i += it) {
+			itVec = CPS_L(i);
+			length += (itVec - prevItVec).length();
+			prevItVec = itVec;
+
+			// fill interleaved data
+			vertexData[5 * nVertices] = itVec.v[0];
+			vertexData[5 * nVertices + 1] = itVec.v[1];
+			vertexData[5 * nVertices + 2] = 1; // red
+			vertexData[5 * nVertices + 3] = 1; // green
+			vertexData[5 * nVertices + 4] = 1; // blue
+
+			nVertices++;
+		}
+
+		//Length
+		printf("length:\t%4.3f m\n", length*10);
+#ifdef DEBUG
+		printf("cX:\t%4.3f\tcY:\t%4.3f\n", cX, cY);
+		printf("wVec:\t\t%4.1f\t%4.1f\t%4.1f\n", wVec.v[0], wVec.v[1], wVec.v[2]);
+		printf("height:\t%4.1f\n", bezierSurface.wBS(wVec.v[0], wVec.v[1]).v[2]);
+		printf("nVertices:\t%d\n", nVertices);
+
+		printf("-------------------\n");
+		printf("cps size:\t%d\n", cps.size());
+		printf("cps[]:\n");
+		for (int i = 0; i < cps.size(); i++)
+			printf("%4.1f, %4.1f, %4.1f\t", cps[i].v[0], cps[i].v[1], cps[i].v[2]);
+		printf("\n");
+
+		printf("-------------------\n");
+		printf("ts size:\t%d\n", ts.size());
+		printf("ts[]:\n");
+		for (int i = 0; i < ts.size(); i++)
+			printf("%4.2f\t", ts[i]);
+		printf("\n");
+		
+		printf("-------------------\n");
+		printf("its size:\t%d\n", its.size());
+		printf("its[]:\n");
+		for (int i = 0; i < its.size(); i++)
+			printf("%4.2f\t", its[i]);
+		printf("\n");
+
+#endif
+
 		// copy data to the GPU
 		glBufferData(GL_ARRAY_BUFFER, nVertices * 5 * sizeof(float), vertexData, GL_DYNAMIC_DRAW);
 	}
 
 	void Draw() {
-		if (nVertices > 0) {
+		if (nVertices > 0)	{
 			mat4 VPTransform = camera.V() * camera.P();
 
 			int location = glGetUniformLocation(shaderProgram, "MVP");
@@ -507,9 +625,262 @@ public:
 	}
 };
 
-// The virtual world: collection of two objects
-LineStrip lineStrip;
-BezierSurface bezierSurface;
+
+LagrangeRoute route;
+
+class TiltTriangle {
+	unsigned int vao;	// vertex array object id
+	float sx, sy;		// scaling
+	float wTx, wTy;		// translation
+public:
+	TiltTriangle() {
+		Animate(0);
+		wTx = 0;
+		wTy = 50;
+	}
+
+	void Create() {
+		glGenVertexArrays(1, &vao);	// create 1 vertex array object
+		glBindVertexArray(vao);		// make it active
+		unsigned int vbo[2];		// vertex buffer objects
+		glGenBuffers(2, &vbo[0]);	// Generate 2 vertex buffer objects
+									// Done with the makin part, baby
+
+									// vertex coordinates: vbo[0] -> Attrib Array 0 -> vertexPosition of the vertex shader
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]); // make it active, it is an array
+		static float vertexCoords[] = { 90,0, 100, 0, 100, 10 };	// vertex data on the CPU
+		glBufferData(GL_ARRAY_BUFFER,   // copy to the GPU
+			sizeof(vertexCoords),		// number of the vbo in bytes
+			vertexCoords,				// address of the data array on the CPU
+			GL_STATIC_DRAW);			// copy to that part of the memory which is not modified 
+										// Map Attribute Array 0 to the current bound vertex buffer (vbo[0])
+		glEnableVertexAttribArray(0);
+		// Data organization of Attribute Array 0 
+		glVertexAttribPointer(0,	// Attribute Array 0
+			2, GL_FLOAT,			// components/attribute, component type
+			GL_FALSE,				// not in fixed point format, do not normalized
+			0, NULL);				// stride and offset: it is tightly packed
+
+									// vertex colors: vbo[1] -> Attrib Array 1 -> vertexColor of the vertex shader
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);	// make it active, it is an array
+		static float vertexColors[] = { 1, 1, 1,  1, 1, 1,  1, 1, 1 };						// vertex data on the CPU
+		glBufferData(GL_ARRAY_BUFFER, sizeof(vertexColors), vertexColors, GL_STATIC_DRAW);	// copy to the GPU
+																							// Map Attribute Array 1 to the current bound vertex buffer (vbo[1])
+		glEnableVertexAttribArray(1);			// Vertex position
+												// Data organization of Attribute Array 1
+		glVertexAttribPointer(1,	// Attribute Array 1,
+			3, GL_FLOAT,			// components/attribute, component type,
+			GL_FALSE,				// normalize?, 
+			0, NULL);				// tightly packed
+	}
+
+	void Animate(float tilt) {
+		sy = atan(tilt);
+		sx = 1;
+	}
+
+	void Draw() {
+		mat4 Mscale(sx, 0, 0, 0,
+					0, sy, 0, 0,
+					0, 0, 0, 0,
+					0, 0, 0, 1); // model matrix
+
+		mat4 Mtranslate(1, 0, 0, 0,
+			0, 1, 0, 0,
+			0, 0, 0, 0,
+			wTx, wTy, 0, 1); // model matrix
+
+		mat4 MVPTransform = Mscale * Mtranslate *  camera.V() * camera.P();
+
+		// set GPU uniform matrix variable MVP with the content of CPU variable MVPTransform
+		int location = glGetUniformLocation(shaderProgram, "MVP");
+		if (location >= 0) glUniformMatrix4fv(location, 1, GL_TRUE, MVPTransform); // set uniform variable MVP to the MVPTransform
+		else printf("uniform MVP cannot be set\n");
+
+		glBindVertexArray(vao);	// make the vao and its vbos active playing the role of the data source
+		glDrawArrays(GL_TRIANGLES, 0, 3);	// draw a single triangle with vertices defined in vao
+	}
+};
+
+TiltTriangle tiltTriangle;
+
+class Cyclist {
+	unsigned int vao;	// vertex array object id
+	float sx, sy;		// scaling
+	float wTx, wTy;		// translation
+	float r11, r12, r21, r22;		// translation
+
+	float time;
+	float tDiff;
+	bool active;
+public:
+	Cyclist() {
+		active = false;
+		sx = 1; sy = 1;
+		wTx = 0; wTy = 0;
+		r11 = 1; r12 = 0; r21 = 0; r22 = 1;
+	}
+
+	void Start(float startTime) {
+		if (route.cps.size() > 1) {
+			route.lock();
+			active = true;
+			time = route.ts[0];
+			tDiff = startTime - time;
+			Animate(startTime);
+		}
+	}
+
+	void Create() {
+		glGenVertexArrays(1, &vao);	// create 1 vertex array object
+		glBindVertexArray(vao);		// make it active
+		unsigned int vbo[2];		// vertex buffer objects
+		glGenBuffers(2, &vbo[0]);	// Generate 2 vertex buffer objects
+									// Done with the makin part, baby
+
+									// vertex coordinates: vbo[0] -> Attrib Array 0 -> vertexPosition of the vertex shader
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[0]); // make it active, it is an array
+		static float vertexCoords[] = { 0,5,		-2, -5,		0, 0,		0, 5,		2, -5,		0, 0 };	// vertex data on the CPU
+		glBufferData(GL_ARRAY_BUFFER,   // copy to the GPU
+			sizeof(vertexCoords),		// number of the vbo in bytes
+			vertexCoords,				// address of the data array on the CPU
+			GL_STATIC_DRAW);			// copy to that part of the memory which is not modified 
+										// Map Attribute Array 0 to the current bound vertex buffer (vbo[0])
+		glEnableVertexAttribArray(0);
+		// Data organization of Attribute Array 0 
+		glVertexAttribPointer(0,	// Attribute Array 0
+			2, GL_FLOAT,			// components/attribute, component type
+			GL_FALSE,				// not in fixed point format, do not normalized
+			0, NULL);				// stride and offset: it is tightly packed
+
+									// vertex colors: vbo[1] -> Attrib Array 1 -> vertexColor of the vertex shader
+		glBindBuffer(GL_ARRAY_BUFFER, vbo[1]);	// make it active, it is an array
+		static float vertexColors[] = { 1, 0, 0,	 0, 0, 0,	 1, 0, 0,	 1, 0, 0,	 0, 0, 0,		1, 0, 0};						// vertex data on the CPU
+		glBufferData(GL_ARRAY_BUFFER, sizeof(vertexColors), vertexColors, GL_STATIC_DRAW);	// copy to the GPU
+																							// Map Attribute Array 1 to the current bound vertex buffer (vbo[1])
+		glEnableVertexAttribArray(1);			// Vertex position
+												// Data organization of Attribute Array 1
+		glVertexAttribPointer(1,	// Attribute Array 1,
+			3, GL_FLOAT,			// components/attribute, component type,
+			GL_FALSE,				// normalize?, 
+			0, NULL);				// tightly packed
+	}
+
+	void Animate(float curT) { 
+		if (active) {
+			time = curT - tDiff;
+			vec4 pos = route.CPS_L(time);
+			vec4 sPos = bezierSurface.wBS(pos.v[0], pos.v[1]);
+			vec4 dirV = route.CPS_dL(time);
+			
+			vec4 vH = bezierSurface.wdBSv(pos.v[0], pos.v[1]);
+			vec4 uH = bezierSurface.wdBSu(pos.v[0], pos.v[1]);
+
+			//Scale the cyclist and triangle by tilt
+			
+			float tilt1 = vH.v[2] / vH.v[0] * dirV.v[0]/dirV.length();	//Xi
+			float tilt2 = uH.v[2] / uH.v[1] * dirV.v[1]/dirV.length();	//Xy
+
+			tiltTriangle.Animate(tilt1 + tilt2);
+			sy = abs(atan(1/(tilt1+tilt2)))/M_PI_2;
+
+			//Move cyclist
+			wTx = pos.v[0];
+			wTy = pos.v[1];
+
+			//Rotate the cyclist
+			float theta = acos(dirV.dot(vec4(0, 1, 0)) / (dirV.length()));
+
+			r11 = cos(theta);
+			r12 = -sin(theta);
+			r21 = sin(theta);
+			r22 = cos(theta);
+
+			if (dirV.v[0] < 0) { //to make it good on the other side...
+				r11 *= -1;
+				r21 *= -1;
+			}
+
+
+
+#ifdef DEBUG
+			system("cls");
+			printf("sTime:\t%4.3f\n", tDiff);
+			printf("curT:\t%4.3f\n", curT);
+			printf("time:\t%4.3f\n", time);
+			printf("xypos:\t\t%4.1f\t%4.1f\t%4.1f\n", pos.v[0], pos.v[1], pos.v[2]);
+			printf("3DPos:\t\t%4.1f\t%4.1f\t%4.1f\n", sPos.v[0], sPos.v[1], sPos.v[2]);
+			printf("dirVec:\t\t%4.1f\t%4.1f\t%4.1f\n", dirV.v[0], dirV.v[1], dirV.v[2]);
+			printf("uH:\t\t%4.1f\t%4.1f\t%4.1f\n", uH.v[0], uH.v[1], uH.v[2]);
+			printf("vH:\t\t%4.1f\t%4.1f\t%4.1f\n", vH.v[0], vH.v[1], vH.v[2]);
+			printf("dotuH:\t%4.3f\n", dirV.dot(uH));
+			printf("dotvH:\t%4.3f\n", dirV.dot(vH));
+
+			printf("TILT1:\t%4.3f°\n", tilt1);
+			printf("TILT2:\t%4.3f°\n", tilt2);
+
+			printf("-------------------\n");
+			printf("ts size:\t%d\n", route.ts.size());
+			printf("ts[]:\n");
+			for (int i = 0; i < route.ts.size(); i++)
+				printf("%4.2f\t", route.ts[i]);
+			printf("\n");
+
+			printf("-------------------\n");
+			printf("its size:\t%d\n", route.its.size());
+			printf("its[]:\n");
+			for (int i = 0; i < route.its.size(); i++)
+				printf("%4.2f\t", route.its[i]);
+			printf("\n");
+
+			printf("-------------------\n");
+			printf("cps size:\t%d\n", route.cps.size());
+			printf("cps[]:\n");
+			for (int i = 0; i < route.cps.size(); i++)
+				printf("%4.1f, %4.1f, %4.1f\t", route.cps[i].v[0], route.cps[i].v[1], route.cps[i].v[2]);
+			printf("\n");
+
+			//printf("TILT:\t%4.2f", acos(dirV.dot(temp) / (temp.length()*dirV.length())));
+#endif
+			if (time >= route.ts.back()) {
+				active = false;
+				route.unlock();
+			}
+		}
+	}
+
+	void Draw() {
+		if (!active) return;
+
+		mat4 Mrotate(r11, r12, 0, 0,   //rotation
+					r21, r22, 0, 0,
+					0, 0, 0, 0,
+					0, 0, 0, 1); // model matrix
+		
+		mat4 Mscale(sx, 0, 0, 0,
+					0, sy, 0, 0,
+					0, 0, 0, 0,
+					0, 0, 0, 1); // model matrix
+
+		mat4 Mtranslate(1, 0, 0, 0,
+						0, 1, 0, 0,
+						0, 0, 0, 0,
+						wTx, wTy, 0, 1); // model matrix
+
+		mat4 MVPTransform =  Mscale * Mrotate * Mtranslate * camera.V() * camera.P();
+
+		// set GPU uniform matrix variable MVP with the content of CPU variable MVPTransform
+		int location = glGetUniformLocation(shaderProgram, "MVP");
+		if (location >= 0) glUniformMatrix4fv(location, 1, GL_TRUE, MVPTransform); // set uniform variable MVP to the MVPTransform
+		else printf("uniform MVP cannot be set\n");
+
+		glBindVertexArray(vao);	// make the vao and its vbos active playing the role of the data source
+		glDrawArrays(GL_TRIANGLES, 0, 6);	// draw a single triangle with vertices defined in vao
+	}
+};
+
+Cyclist cyclist;
+
 
 ////////////////////////////////////////////////
 // Initialization and events
@@ -520,8 +891,12 @@ void onInitialization() {
 	glViewport(0, 0, windowWidth, windowHeight);
 
 	// Create objects by setting up their vertex data on the GPU
-	lineStrip.Create();
+
+	route.Create();
 	bezierSurface.Create();
+	cyclist.Create();
+	tiltTriangle.Create();
+
 
 	// Create vertex shader from string
 	unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
@@ -571,16 +946,20 @@ void onExit() {
 void onDisplay() {
 	glClearColor(0, 0, 0, 0);							// background color 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // clear the screen
-
+	
 	bezierSurface.Draw();
-	lineStrip.Draw();
+	route.Draw();
+	cyclist.Draw();
+	tiltTriangle.Draw();
 
 	glutSwapBuffers();									// exchange the two buffers
 }
 
 // Key of ASCII code pressed
 void onKeyboard(unsigned char key, int pX, int pY) {
-	if (key == 'd') glutPostRedisplay();         // if d, invalidate display, i.e. redraw
+	long time = glutGet(GLUT_ELAPSED_TIME); // elapsed time since the start of the program
+	float sec = time / 1000.0f;				// convert msec to sec
+	if (key == ' ') cyclist.Start(sec);         // if d, invalidate display, i.e. redraw
 }
 
 // Key of ASCII code released
@@ -593,7 +972,11 @@ void onMouse(int button, int state, int pX, int pY) {
 	if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {  // GLUT_LEFT_BUTTON / GLUT_RIGHT_BUTTON and GLUT_DOWN / GLUT_UP
 		float cX = 2.0f * pX / windowWidth - 1;	// flip y axis
 		float cY = 1.0f - 2.0f * pY / windowHeight;
-		lineStrip.AddPoint(cX, cY);
+
+		long time = glutGet(GLUT_ELAPSED_TIME); // elapsed time since the start of the program
+		float sec = time / 1000.0f;				// convert msec to sec
+
+		route.AddPoint(cX, cY, sec);
 		glutPostRedisplay();     // redraw
 	}
 }
@@ -606,7 +989,9 @@ void onMouseMotion(int pX, int pY) {
 void onIdle() {
 	long time = glutGet(GLUT_ELAPSED_TIME); // elapsed time since the start of the program
 	float sec = time / 1000.0f;				// convert msec to sec
-	camera.Animate(sec);					// animate the camera
+
+	cyclist.Animate(sec);					// animate the camera
+
 	glutPostRedisplay();					// redraw the scene
 }
 
@@ -647,7 +1032,7 @@ int main(int argc, char * argv[]) {
 	glutIdleFunc(onIdle);
 	glutKeyboardFunc(onKeyboard);
 	glutKeyboardUpFunc(onKeyboardUp);
-	glutMotionFunc(onMouseMotion);
+	//glutMotionFunc(onMouseMotion);
 
 	glutMainLoop();
 	onExit();

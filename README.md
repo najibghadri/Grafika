@@ -1,2 +1,6 @@
 # Grafika homeworks
-Homeworks for university subject, written in C++.
+Homeworks for university graphics subject, written in C++.
+
+## hw1: Olimpiai hegyi kerékpárpálya
+Készítsen hegyi kerékpárpálya tervezot, amely felülnézetben, meroleges vetülettel mutatja a pályát és környékét! A terepet Bézier felülettel adjuk meg. A kontrolpontok xy vetületei szabályos N x N-es (N > 3) 2D rácsot alkotnak az 1km x 1km tartományban. A tervezoprogramban a magasságot térképszeru, de megválasztható színkódolással kell bemutatni (például de nem kötelezoen: alacsony zöld, magasabb világosbarna, magas sötétbarna).  A színkódoláshoz a magasságot 50 méterenként kell kiértékelni, a mintapontok között a szín lineárisan változik. 
+A tervezo a bal egérgomb lenyomásokkal a terepre vetíti a pálya kontrolpontjait, amelyet a program fehér NEM ZÁRT!! Lagrange interpolációs görbével köt össze és printf-fel kiírja az aktuális pálya hosszát. SPACE lenyomására egy alkalmas színu nyílszeru konkáv poligonnal ábrázolt virtuális biciklista indul el a pályán a nyilat mindig a haladási irányba állítva. A haladási irány 3D-ben analitikusan (nem pedig közelíto differenciahányadossal) számítandó. A biciklista a két kontrolpont között pontosan annyi idot tölt el, amennyi a két gomblenyomás között eltelt. A pálya meredekségét a képernyon tetszoleges helyen elhelyezett derékszögu háromszöggel szemléltesse, amelynek az emelkedési szög az egyik szöge, és állása mutatja, hogy emelkedovel küzd-e a kerékpáros vagy lejton gurul lefelé. 
