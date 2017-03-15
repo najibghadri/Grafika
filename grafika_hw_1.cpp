@@ -257,7 +257,6 @@ unsigned int shaderProgram;
 ////////////////////////////////////////////////
 // Models
 ////////////////////////////////////////////////
-#define DEBUG
 
 class BezierSurface {
 	GLuint vao, vbo;		// vertex array object, vertex buffer object
@@ -543,10 +542,6 @@ public:
 		if (cps.size() >= 15) return;
 		if (rLock == true) return;
 
-#ifdef DEBUG
-		system("cls");
-#endif
-
 		//Create the new control point from the click params
 		vec4 wVec = vec4(cX, cY, 0, 1) * camera.Pinv() * camera.Vinv();
 
@@ -578,34 +573,6 @@ public:
 
 		//Length
 		printf("length:\t%4.3f m\n", length*10);
-#ifdef DEBUG
-		printf("cX:\t%4.3f\tcY:\t%4.3f\n", cX, cY);
-		printf("wVec:\t\t%4.1f\t%4.1f\t%4.1f\n", wVec.v[0], wVec.v[1], wVec.v[2]);
-		printf("height:\t%4.1f\n", bezierSurface.wBS(wVec.v[0], wVec.v[1]).v[2]);
-		printf("nVertices:\t%d\n", nVertices);
-
-		printf("-------------------\n");
-		printf("cps size:\t%d\n", cps.size());
-		printf("cps[]:\n");
-		for (int i = 0; i < cps.size(); i++)
-			printf("%4.1f, %4.1f, %4.1f\t", cps[i].v[0], cps[i].v[1], cps[i].v[2]);
-		printf("\n");
-
-		printf("-------------------\n");
-		printf("ts size:\t%d\n", ts.size());
-		printf("ts[]:\n");
-		for (int i = 0; i < ts.size(); i++)
-			printf("%4.2f\t", ts[i]);
-		printf("\n");
-		
-		printf("-------------------\n");
-		printf("its size:\t%d\n", its.size());
-		printf("its[]:\n");
-		for (int i = 0; i < its.size(); i++)
-			printf("%4.2f\t", its[i]);
-		printf("\n");
-
-#endif
 
 		// copy data to the GPU
 		glBufferData(GL_ARRAY_BUFFER, nVertices * 5 * sizeof(float), vertexData, GL_DYNAMIC_DRAW);
@@ -801,47 +768,6 @@ public:
 				r21 *= -1;
 			}
 
-
-
-#ifdef DEBUG
-			system("cls");
-			printf("sTime:\t%4.3f\n", tDiff);
-			printf("curT:\t%4.3f\n", curT);
-			printf("time:\t%4.3f\n", time);
-			printf("xypos:\t\t%4.1f\t%4.1f\t%4.1f\n", pos.v[0], pos.v[1], pos.v[2]);
-			printf("3DPos:\t\t%4.1f\t%4.1f\t%4.1f\n", sPos.v[0], sPos.v[1], sPos.v[2]);
-			printf("dirVec:\t\t%4.1f\t%4.1f\t%4.1f\n", dirV.v[0], dirV.v[1], dirV.v[2]);
-			printf("uH:\t\t%4.1f\t%4.1f\t%4.1f\n", uH.v[0], uH.v[1], uH.v[2]);
-			printf("vH:\t\t%4.1f\t%4.1f\t%4.1f\n", vH.v[0], vH.v[1], vH.v[2]);
-			printf("dotuH:\t%4.3f\n", dirV.dot(uH));
-			printf("dotvH:\t%4.3f\n", dirV.dot(vH));
-
-			printf("TILT1:\t%4.3f°\n", tilt1);
-			printf("TILT2:\t%4.3f°\n", tilt2);
-
-			printf("-------------------\n");
-			printf("ts size:\t%d\n", route.ts.size());
-			printf("ts[]:\n");
-			for (int i = 0; i < route.ts.size(); i++)
-				printf("%4.2f\t", route.ts[i]);
-			printf("\n");
-
-			printf("-------------------\n");
-			printf("its size:\t%d\n", route.its.size());
-			printf("its[]:\n");
-			for (int i = 0; i < route.its.size(); i++)
-				printf("%4.2f\t", route.its[i]);
-			printf("\n");
-
-			printf("-------------------\n");
-			printf("cps size:\t%d\n", route.cps.size());
-			printf("cps[]:\n");
-			for (int i = 0; i < route.cps.size(); i++)
-				printf("%4.1f, %4.1f, %4.1f\t", route.cps[i].v[0], route.cps[i].v[1], route.cps[i].v[2]);
-			printf("\n");
-
-			//printf("TILT:\t%4.2f", acos(dirV.dot(temp) / (temp.length()*dirV.length())));
-#endif
 			if (time >= route.ts.back()) {
 				active = false;
 				route.unlock();
