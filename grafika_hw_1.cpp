@@ -558,8 +558,11 @@ public:
 
 		for (float i = ts.front(); i < ts.back(); i += it) {
 			itVec = CPS_L(i);
-			length += (itVec - prevItVec).length();
-			prevItVec = itVec;
+			vec4 sPos = bezierSurface.wBS(itVec.v[0], itVec.v[1]);
+
+
+			length += (sPos - prevItVec).length();
+			prevItVec = sPos;
 
 			// fill interleaved data
 			vertexData[5 * nVertices] = itVec.v[0];
@@ -737,7 +740,6 @@ public:
 		if (active) {
 			time = curT - tDiff;
 			vec4 pos = route.CPS_L(time);
-			vec4 sPos = bezierSurface.wBS(pos.v[0], pos.v[1]);
 			vec4 dirV = route.CPS_dL(time);
 			
 			vec4 vH = bezierSurface.wdBSv(pos.v[0], pos.v[1]);
