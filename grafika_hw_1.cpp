@@ -257,6 +257,7 @@ unsigned int shaderProgram;
 ////////////////////////////////////////////////
 // Models
 ////////////////////////////////////////////////
+//#define DEBUG
 
 class BezierSurface {
 	GLuint vao, vbo;		// vertex array object, vertex buffer object
@@ -301,9 +302,6 @@ class BezierSurface {
 		{vec4(0,	25,		30),	vec4(25,	25,		70),	vec4(50, 25,	40),	vec4(75,	25,		50),	 vec4(100,	25,	60) },
 		{vec4(0,	0,		90),	vec4(25,	0,		30),	vec4(50, 0,		0),		vec4(75,	0,		35),	 vec4(100,	0,	100)}
 	};	// Hill
-
-
-
 
 	vec4 zColorInterp(const vec4& vec) {
 		float z = vec.v[2];
@@ -443,7 +441,6 @@ public:
 
 	void Draw() {
 
-
 		mat4 VPTransform = camera.V() * camera.P();
 
 		// set GPU uniform matrix variable MVP with the content of CPU variable MVPTransform
@@ -552,14 +549,12 @@ public:
 		//Calculate new length, number of vertices
 		length = 0;
 		nVertices = 0;
-		vec4 itVec; //To iterate through the curve
-		float it = (ts.back() - ts.front()) / 1000;  //For iteration
-		vec4 prevItVec = CPS_L(ts.front());  //To calculate the length differentially
-
-		for (float i = ts.front(); i < ts.back(); i += it) {
+		vec4 itVec = CPS_L(ts.front()); ; //To iterate through the 
+		vec4 prevItVec = bezierSurface.wBS(itVec.v[0], itVec.v[1]);  //To calculate the length differentially
+		
+		for (float i = ts.front(); i < ts.back(); i += 0.01) {
 			itVec = CPS_L(i);
 			vec4 sPos = bezierSurface.wBS(itVec.v[0], itVec.v[1]);
-
 
 			length += (sPos - prevItVec).length();
 			prevItVec = sPos;
@@ -574,8 +569,37 @@ public:
 			nVertices++;
 		}
 
+#ifdef DEBUG
+		system("cls");
+		printf("cX:\t%4.3f\tcY:\t%4.3f\n", cX, cY);
+		printf("wVec:\t\t%4.1f\t%4.1f\t%4.1f\n", wVec.v[0], wVec.v[1], wVec.v[2]);
+		printf("height:\t%4.1f\n", bezierSurface.wBS(wVec.v[0], wVec.v[1]).v[2]);
+		printf("nVertices:\t%d\n", nVertices);
+
+		printf("-------------------\n");
+		printf("cps size:\t%d\n", cps.size());
+		printf("cps[]:\n");
+		for (int i = 0; i < cps.size(); i++)
+			printf("%4.1f, %4.1f, %4.1f\t", cps[i].v[0], cps[i].v[1], cps[i].v[2]);
+		printf("\n");
+
+		printf("-------------------\n");
+		printf("ts size:\t%d\n", ts.size());
+		printf("ts[]:\n");
+		for (int i = 0; i < ts.size(); i++)
+			printf("%4.2f\t", ts[i]);
+		printf("\n");
+
+		printf("-------------------\n");
+		printf("its size:\t%d\n", its.size());
+		printf("its[]:\n");
+		for (int i = 0; i < its.size(); i++)
+			printf("%4.2f\t", its[i]);
+		printf("\n");
+
+#endif
 		//Length
-		printf("length:\t%4.3f m\n", length*10);
+		printf("length:\t%4.3f m\n", length * 10);
 
 		// copy data to the GPU
 		glBufferData(GL_ARRAY_BUFFER, nVertices * 5 * sizeof(float), vertexData, GL_DYNAMIC_DRAW);
@@ -680,9 +704,8 @@ class Cyclist {
 	float wTx, wTy;		// translation
 	float r11, r12, r21, r22;		// translation
 
-	float time;
-	float tDiff;
 	bool active;
+	float diffT;
 public:
 	Cyclist() {
 		active = false;
@@ -695,8 +718,7 @@ public:
 		if (route.cps.size() > 1) {
 			route.lock();
 			active = true;
-			time = route.ts[0];
-			tDiff = startTime - time;
+			diffT = startTime - route.ts[0];
 			Animate(startTime);
 		}
 	}
@@ -737,48 +759,89 @@ public:
 	}
 
 	void Animate(float curT) { 
-		if (active) {
-			time = curT - tDiff;
-			vec4 pos = route.CPS_L(time);
-			vec4 dirV = route.CPS_dL(time);
+		if (!active) {
+			return;
+		}
+
+		//Current position calculated by elaspes time relative to beginninng time
+		float rTime = curT - diffT;
+		vec4 pos = route.CPS_L(rTime);
+		vec4 dirV = route.CPS_dL(rTime);
 			
-			vec4 vH = bezierSurface.wdBSv(pos.v[0], pos.v[1]);
-			vec4 uH = bezierSurface.wdBSu(pos.v[0], pos.v[1]);
+		//Directional derivatives
+		vec4 vH = bezierSurface.wdBSv(pos.v[0], pos.v[1]);
+		vec4 uH = bezierSurface.wdBSu(pos.v[0], pos.v[1]);
 
-			//Scale the cyclist and triangle by tilt
-			
-			float tilt1 = vH.v[2] / vH.v[0] * dirV.v[0]/dirV.length();	//Xi
-			float tilt2 = uH.v[2] / uH.v[1] * dirV.v[1]/dirV.length();	//Xy
+		//Scale the cyclist and triangle by tilt
+		float tilt1 = vH.v[2] / vH.v[0] * dirV.v[0]/dirV.length();	//Xi 
+		float tilt2 = uH.v[2] / uH.v[1] * dirV.v[1]/dirV.length();	//Xy
+		tiltTriangle.Animate(tilt1 + tilt2);
+		sy = abs(atan(1/(tilt1+tilt2)))/M_PI_2;
 
-			tiltTriangle.Animate(tilt1 + tilt2);
-			sy = abs(atan(1/(tilt1+tilt2)))/M_PI_2;
+		//Move cyclist
+		wTx = pos.v[0];
+		wTy = pos.v[1];
 
-			//Move cyclist
-			wTx = pos.v[0];
-			wTy = pos.v[1];
+		//Rotate the cyclist
+		float theta = acos(dirV.dot(vec4(0, 1, 0)) / (dirV.length()));
 
-			//Rotate the cyclist
-			float theta = acos(dirV.dot(vec4(0, 1, 0)) / (dirV.length()));
+		r11 = cos(theta);
+		r12 = -sin(theta);
+		r21 = sin(theta);
+		r22 = cos(theta);
 
-			r11 = cos(theta);
-			r12 = -sin(theta);
-			r21 = sin(theta);
-			r22 = cos(theta);
+		if (dirV.v[0] < 0) { //to make it good on the other side...
+			r11 *= -1;
+			r21 *= -1;
+		}
 
-			if (dirV.v[0] < 0) { //to make it good on the other side...
-				r11 *= -1;
-				r21 *= -1;
-			}
 
-			if (time >= route.ts.back()) {
-				active = false;
-				route.unlock();
-			}
+#ifdef DEBUG
+		system("cls");
+		printf("curT:\t%4.3f\n", curT);
+		printf("time:\t%4.3f\n", rTime);
+		printf("xypos:\t\t%4.1f\t%4.1f\t%4.1f\n", pos.v[0], pos.v[1], pos.v[2]);
+		printf("dirVec:\t\t%4.1f\t%4.1f\t%4.1f\n", dirV.v[0], dirV.v[1], dirV.v[2]);
+		printf("uH:\t\t%4.1f\t%4.1f\t%4.1f\n", uH.v[0], uH.v[1], uH.v[2]);
+		printf("vH:\t\t%4.1f\t%4.1f\t%4.1f\n", vH.v[0], vH.v[1], vH.v[2]);
+		printf("dotuH:\t%4.3f\n", dirV.dot(uH));
+		printf("dotvH:\t%4.3f\n", dirV.dot(vH));
+
+		printf("TILT1:\t%4.3f°\n", tilt1);
+		printf("TILT2:\t%4.3f°\n", tilt2);
+
+		printf("-------------------\n");
+		printf("ts size:\t%d\n", route.ts.size());
+		printf("ts[]:\n");
+		for (int i = 0; i < route.ts.size(); i++)
+			printf("%4.2f\t", route.ts[i]);
+		printf("\n");
+
+		printf("-------------------\n");
+		printf("its size:\t%d\n", route.its.size());
+		printf("its[]:\n");
+		for (int i = 0; i < route.its.size(); i++)
+			printf("%4.2f\t", route.its[i]);
+		printf("\n");
+
+		printf("-------------------\n");
+		printf("cps size:\t%d\n", route.cps.size());
+		printf("cps[]:\n");
+		for (int i = 0; i < route.cps.size(); i++)
+			printf("%4.1f, %4.1f, %4.1f\t", route.cps[i].v[0], route.cps[i].v[1], route.cps[i].v[2]);
+		printf("\n");
+#endif
+
+		if (rTime >= route.ts.back()) {
+			active = false;
+			route.unlock();
 		}
 	}
 
 	void Draw() {
-		if (!active) return;
+		if (!active) {
+			return;
+		}
 
 		mat4 Mrotate(r11, r12, 0, 0,   //rotation
 					r21, r22, 0, 0,
@@ -960,7 +1023,7 @@ int main(int argc, char * argv[]) {
 	glutIdleFunc(onIdle);
 	glutKeyboardFunc(onKeyboard);
 	glutKeyboardUpFunc(onKeyboardUp);
-	//glutMotionFunc(onMouseMotion);
+	glutMotionFunc(onMouseMotion);
 
 	glutMainLoop();
 	onExit();
