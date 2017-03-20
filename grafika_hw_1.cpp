@@ -258,7 +258,7 @@ unsigned int shaderProgram;
 // Models
 ////////////////////////////////////////////////
 //#define DEBUG
-
+// Kepletek a grafika diakrol, es a wikipediarol (alapkeplet, derivalt)
 class BezierSurface {
 	GLuint vao, vbo;		// vertex array object, vertex buffer object
 	float wVertexData[5000];	// data of coordinates and colors
@@ -466,7 +466,7 @@ class LagrangeRoute {
 ///////////////////////////////////////
 // Lagrange curves
 //////////////////
-
+// Kepletek a grafika diakrol, es a wikipediarol (alapkeplet, derivalt)
 public:
 	std::vector<float> its; 	// incremental (knot) values
 	std::vector<float> ts;		// time (knot) values
