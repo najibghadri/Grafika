@@ -719,7 +719,6 @@ public:
 			route.lock();
 			active = true;
 			diffT = startTime - route.ts[0];
-			Animate(startTime);
 		}
 	}
 
@@ -950,7 +949,7 @@ void onDisplay() {
 void onKeyboard(unsigned char key, int pX, int pY) {
 	long time = glutGet(GLUT_ELAPSED_TIME); // elapsed time since the start of the program
 	float sec = time / 1000.0f;				// convert msec to sec
-	if (key == ' ') cyclist.Start(sec);         // if d, invalidate display, i.e. redraw
+	if (key == ' ') cyclist.Start(sec);
 }
 
 // Key of ASCII code released
