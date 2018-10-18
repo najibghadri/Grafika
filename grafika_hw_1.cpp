@@ -5,7 +5,7 @@
 // A beadott program csak ebben a fajlban lehet, a fajl 1 byte-os ASCII karaktereket tartalmazhat.
 // Tilos:
 // - mast "beincludolni", illetve mas konyvtarat hasznalni
-// - faljmuveleteket vegezni a printf-et kivéve
+// - faljmuveleteket vegezni a printf-et kivÃ©ve
 // - new operatort hivni a lefoglalt adat korrekt felszabaditasa nelkul
 // - felesleges programsorokat a beadott programban hagyni
 // - felesleges kommenteket a beadott programba irni a forrasmegjelolest kommentjeit kiveve
@@ -21,7 +21,7 @@
 // Nev    : Ghadri Najib
 // Neptun : C24J1U
 // ---------------------------------------------------------------------------------------------
-// ezennel kijelentem, hogy a feladatot magam keszitettem, es ha barmilyen segitseget igenybe vettem vagy
+// Ezennel itt Ã©s most kijelentem, hogy a feladatot magam keszitettem, es ha barmilyen segitseget igenybe vettem vagy
 // mas szellemi termeket felhasznaltam, akkor a forrast es az atvett reszt kommentekben egyertelmuen jeloltem.
 // A forrasmegjeloles kotelme vonatkozik az eloadas foliakat es a targy oktatoi, illetve a
 // grafhazi doktor tanacsait kiveve barmilyen csatornan (szoban, irasban, Interneten, stb.) erkezo minden egyeb
@@ -806,8 +806,8 @@ public:
 		printf("dotuH:\t%4.3f\n", dirV.dot(uH));
 		printf("dotvH:\t%4.3f\n", dirV.dot(vH));
 
-		printf("TILT1:\t%4.3f°\n", tilt1);
-		printf("TILT2:\t%4.3f°\n", tilt2);
+		printf("TILT1:\t%4.3fÂ°\n", tilt1);
+		printf("TILT2:\t%4.3fÂ°\n", tilt2);
 
 		printf("-------------------\n");
 		printf("ts size:\t%d\n", route.ts.size());
